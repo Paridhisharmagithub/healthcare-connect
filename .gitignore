@@ -31,3 +31,6 @@ __pycache__/
 node_modules/
 .env
 dist/
+
+serviceAccountKey.json
+firebaseConfig.json
