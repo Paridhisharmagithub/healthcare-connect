@@ -4,6 +4,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import requests
 import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app)
@@ -13,10 +14,14 @@ cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
+# Load .env file
+load_dotenv()
+
 # Environment variables
-AZURE_KEY = os.environ.get("AZURE_KEY")
-OPENFDA_URL = "https://api.fda.gov/drug/label.json"
-GEMINI_KEY = os.environ.get("GEMINI_KEY")
+AZURE_KEY = os.getenv("AZURE_KEY")
+GEMINI_KEY = os.getenv("GEMINI_KEY")
+OPENFDA_URL = os.getenv("OPENFDA_URL")
+
 
 # ---------------------
 # PATIENT APIs
