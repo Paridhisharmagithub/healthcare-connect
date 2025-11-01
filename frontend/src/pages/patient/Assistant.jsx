@@ -11,16 +11,22 @@ import {
   AlertCircle,
   Paperclip,
   X,
+  Menu,
+  ChevronLeft,
 } from "lucide-react";
 
 export default function Assistant() {
   const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState([]); // { type, content, files?, isEmergency?, isError? }
+  const [messages, setMessages] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [showSidebar, setShowSidebar] = useState(true);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  const uid = localStorage.getItem("uid") || "test-user";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,6 +43,10 @@ export default function Assistant() {
 
   const clearFileInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const loadConversation = (chat) => {
+    setMessages(chat.messages || []);
   };
 
   const handleSend = async () => {
@@ -57,11 +67,7 @@ export default function Assistant() {
 
     setMessages((prev) => [
       ...prev,
-      {
-        type: "user",
-        content: userMessage,
-        files: selectedFiles.length ? selectedFiles : undefined,
-      },
+      { type: "user", content: userMessage, files: selectedFiles.length ? selectedFiles : undefined },
     ]);
 
     setPrompt("");
@@ -69,33 +75,43 @@ export default function Assistant() {
     setLoading(true);
 
     try {
-      const response = await chatWithAI(userMessage, historyForApi, selectedFiles);
+      const response = await chatWithAI(userMessage, historyForApi, selectedFiles, uid);
 
       if (response && response.success) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "ai",
-            content: response.response,
-            isEmergency: response.is_emergency || false,
-          },
-        ]);
+        const aiMsg = {
+          type: "ai",
+          content: response.response,
+          isEmergency: response.is_emergency || false,
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+
+        setHistory((prev) => {
+          const updated = [...prev];
+          const idx = updated.findIndex((h) => h.id === uid);
+          if (idx > -1) {
+            updated[idx] = {
+              ...updated[idx],
+              messages: [...updated[idx].messages, { type: "user", content: userMessage }, aiMsg],
+            };
+          } else {
+            updated.push({
+              id: uid,
+              title: userMessage.slice(0, 30),
+              messages: [{ type: "user", content: userMessage }, aiMsg],
+            });
+          }
+          return updated;
+        });
       } else {
         const backendMsg = (response && (response.error || response.details)) || "AI error";
         setError(backendMsg);
-        setMessages((prev) => [
-          ...prev,
-          { type: "ai", content: "Sorry — couldn't generate a reply.", isError: true },
-        ]);
+        setMessages((prev) => [...prev, { type: "ai", content: "Sorry — couldn't generate a reply.", isError: true }]);
       }
     } catch (err) {
       console.error("Chat error:", err);
       const msg = err?.response?.data?.error || err?.message || "Network Error";
       setError(msg);
-      setMessages((prev) => [
-        ...prev,
-        { type: "ai", content: "Connection problem. Try again later.", isError: true },
-      ]);
+      setMessages((prev) => [...prev, { type: "ai", content: "Connection problem. Try again later.", isError: true }]);
     } finally {
       setLoading(false);
       setSelectedFiles([]);
@@ -110,77 +126,56 @@ export default function Assistant() {
     }
   };
 
-  const sampleQuestions = [
-    "What are the symptoms of diabetes?",
-    "How to reduce high blood pressure naturally?",
-    "What should I eat for better immunity?",
-    "When should I see a doctor for fever?",
-    "What is the difference between cold and flu?",
-    "How to manage stress and anxiety?",
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
       <Navbar userType="patient" userName="John Doe" />
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-            <MessageCircle className="w-8 h-8 text-emerald-600" />
-            AI Health Assistant
-          </h1>
-          <p className="text-gray-600">Powered by Google Gemini AI</p>
-        </div>
 
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-red-800 font-semibold">Error</p>
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar toggle */}
+        <button
+          className="absolute top-20 left-4 z-50 p-2 bg-white shadow rounded-full border border-gray-200 hover:bg-emerald-50 transition"
+          onClick={() => setShowSidebar(!showSidebar)}
+        >
+          {showSidebar ? <ChevronLeft className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+        </button>
+
+        {/* Sidebar (fixed height, no scroll on main page) */}
+        {showSidebar && (
+          <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-y-auto h-[calc(100vh-64px)]">
+            <div className="p-4 font-semibold text-lg text-gray-700 border-b border-gray-200">Chat History</div>
+            {history.length === 0 ? (
+              <div className="p-4 text-gray-400 text-sm">No previous conversations</div>
+            ) : (
+              history.map((chat, idx) => (
+                <button
+                  key={chat.id || idx}
+                  onClick={() => loadConversation(chat)}
+                  className="text-left p-3 hover:bg-emerald-50 border-b border-gray-100 truncate text-sm"
+                >
+                  {chat.title || `Chat ${idx + 1}`}
+                </button>
+              ))
+            )}
           </div>
         )}
 
-        <div
-          className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 flex flex-col"
-          style={{ height: "calc(100vh - 350px)" }}
-        >
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Chat area (only this scrolls) */}
+        <div className="flex-1 flex flex-col h-[calc(100vh-64px)]">
+          {/* Scrollable chat messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 ? (
               <div className="text-center py-12">
-                <div className="bg-gradient-to-br from-emerald-100 to-teal-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Bot className="w-12 h-12 text-emerald-600" />
+                <div className="bg-gradient-to-br from-emerald-100 to-teal-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Bot className="w-10 h-10 text-emerald-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  Welcome to AI Health Assistant!
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Ask me health-related questions and get instant answers
-                </p>
-
-                <div className="max-w-md mx-auto">
-                  <p className="text-sm text-gray-500 mb-3">Try these questions:</p>
-                  <div className="grid gap-2">
-                    {sampleQuestions.map((q, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setPrompt(q)}
-                        className="text-left px-4 py-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-sm text-gray-700 transition border border-emerald-100"
-                      >
-                        💡 {q}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Welcome to AI Health Assistant!</h3>
+                <p className="text-gray-600 text-sm">Ask me health-related questions and get instant answers</p>
               </div>
             ) : (
               messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex gap-3 ${message.type === "user" ? "flex-row-reverse" : "flex-row"}`}
-                >
+                <div key={index} className={`flex gap-2 ${message.type === "user" ? "flex-row-reverse" : "flex-row"}`}>
                   <div
-                    className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                       message.type === "user"
                         ? "bg-gradient-to-br from-emerald-500 to-teal-600"
                         : message.isEmergency
@@ -189,14 +184,14 @@ export default function Assistant() {
                     }`}
                   >
                     {message.type === "user" ? (
-                      <User className="w-5 h-5 text-white" />
+                      <User className="w-4 h-4 text-white" />
                     ) : (
-                      <Bot className="w-5 h-5 text-white" />
+                      <Bot className="w-4 h-4 text-white" />
                     )}
                   </div>
 
                   <div
-                    className={`flex-1 px-4 py-3 rounded-2xl ${
+                    className={`flex-1 px-3 py-2 rounded-2xl ${
                       message.type === "user"
                         ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white"
                         : message.isEmergency
@@ -204,13 +199,11 @@ export default function Assistant() {
                         : message.isError
                         ? "bg-orange-50 text-orange-900 border border-orange-200"
                         : "bg-gray-100 text-gray-800"
-                    } max-w-[80%]`}
+                    } max-w-[70%] text-sm`}
                   >
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                      {message.content}
-                    </p>
+                    <p className="whitespace-pre-wrap leading-snug">{message.content}</p>
                     {message.files && message.files.length > 0 && (
-                      <ul className="mt-2 text-xs text-gray-600 list-disc list-inside">
+                      <ul className="mt-1 text-xs text-gray-600 list-disc list-inside">
                         {message.files.map((f, i) => (
                           <li key={i}>{f.name}</li>
                         ))}
@@ -222,27 +215,30 @@ export default function Assistant() {
             )}
 
             {loading && (
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-white" />
+              <div className="flex gap-2">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-white" />
                 </div>
-                <div className="flex-1 px-4 py-3 rounded-2xl bg-gray-100 max-w-[80%]">
+                <div className="flex-1 px-3 py-2 rounded-2xl bg-gray-100 max-w-[70%] text-sm">
                   <div className="flex items-center gap-2">
-                    <Loader className="w-4 h-4 animate-spin text-emerald-600" />
-                    <span className="text-sm text-gray-600">AI is thinking...</span>
+                    <Loader className="w-3 h-3 animate-spin text-emerald-600" />
+                    <span className="text-xs text-gray-600">AI is thinking...</span>
                   </div>
                 </div>
               </div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t border-gray-100 p-4 bg-gray-50">
+          {/* Fixed Input Area (does NOT scroll) */}
+          <div className="border-t border-gray-100 p-3 bg-gray-50 flex flex-col gap-2 sticky bottom-0">
             {selectedFiles.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {selectedFiles.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-sm">
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-sm"
+                  >
                     <Paperclip className="w-4 h-4" />
                     <span className="max-w-xs truncate">{f.name}</span>
                     <button type="button" onClick={() => removeFile(i)} className="ml-2">
@@ -259,10 +255,10 @@ export default function Assistant() {
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your health question here..."
-                className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition resize-none"
+                className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition resize-none"
                 disabled={loading}
                 rows="1"
-                style={{ minHeight: "48px", maxHeight: "120px" }}
+                style={{ minHeight: "40px", maxHeight: "100px" }}
               />
 
               <label className="px-3 py-2 bg-gray-100 rounded-xl cursor-pointer hover:bg-gray-200 flex items-center gap-2">
@@ -274,23 +270,17 @@ export default function Assistant() {
               <button
                 onClick={handleSend}
                 disabled={loading || (!prompt.trim() && selectedFiles.length === 0)}
-                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
               AI responses are for informational purposes only. Consult a doctor for medical advice.
             </p>
           </div>
-        </div>
-
-        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <p className="text-sm text-yellow-800">
-            ⚠️ <strong>Important:</strong> This AI assistant provides general health information only. It is not a substitute for professional medical advice.
-          </p>
         </div>
       </div>
     </div>

@@ -20,25 +20,29 @@ export const searchMedicine = async (name, type = "", manufacturer = "", page = 
 };
 export const approveDoctor = (uid, status) => client.post("/approve-doctor", { uid, status });
 
+
 // -------------------- Chat with optional file attachments --------------------
 export const chatWithAI = async (message, history = [], files = []) => {
-  if (files.length === 0) {
-    const res = await client.post("/chat", { message, history });
-    return res.data;
+  let uid = localStorage.getItem("uid");
+  if (!uid) {
+    uid = "user-" + Date.now();
+    localStorage.setItem("uid", uid);
   }
 
   const formData = new FormData();
+  formData.append("uid", uid);
   formData.append("message", message);
   formData.append("history", JSON.stringify(history));
-  files.forEach((f) => formData.append("files", f));
 
-  const res = await axios.post(`${API_URL}/chat`, formData, {
+  files.forEach((file) => formData.append("files", file));
+
+  const response = await axios.post(`${API_URL}/chat`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
-    timeout: 60000,
   });
-
-  return res.data;
+  return response.data;
 };
+
+
 
 export const uploadReport = (formData) =>
   axios.post(`${API_URL}/upload-report`, formData, {

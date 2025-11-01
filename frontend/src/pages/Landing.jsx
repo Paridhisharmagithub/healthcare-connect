@@ -38,7 +38,7 @@ const Landing = () => {
       {/* Hero Section */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-12 text-center">
         <div className="inline-block mb-4 px-4 py-2 bg-emerald-100 rounded-full">
-          <span className="text-emerald-700 font-medium text-sm">🌟 Connecting Rural India to Quality Healthcare</span>
+          <span className="text-emerald-700 font-medium text-sm">Connecting Rural India to Quality Healthcare</span>
         </div>
         
         <h1 className="text-5xl md:text-6xl font-bold text-gray-800 mb-6 leading-tight">
@@ -226,7 +226,7 @@ const Landing = () => {
       <footer className="relative z-10 mt-16 py-8 border-t border-emerald-100">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <p className="text-gray-600">
-            © 2025 HealthBridge. Making healthcare accessible for everyone. 🌱
+            © 2025 HealthBridge. Making healthcare accessible for everyone.
           </p>
         </div>
       </footer>

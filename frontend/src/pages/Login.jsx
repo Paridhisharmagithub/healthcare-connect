@@ -67,7 +67,6 @@ const Login = () => {
             {/* Error Message */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2">
-                <span className="text-xl">⚠️</span>
                 <p className="text-sm">{error}</p>
               </div>
             )}
@@ -162,7 +161,6 @@ const Login = () => {
         {/* Security Note */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
-            <span>🔒</span>
             Your data is secure and encrypted
           </p>
         </div>

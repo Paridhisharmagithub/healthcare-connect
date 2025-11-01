@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 
 // Public pages
 import Landing from "./pages/Landing";
@@ -33,39 +33,53 @@ import ManageUsers from "./pages/admin/ManageUsers";
 import Footer from "./components/Footer";
 import { AuthProvider } from "./contexts/AuthContext";
 
+function AppContent() {
+  const location = useLocation();
+  const hideFooterRoutes = ["/patient/assistant", "/", "/register-patient", "/register-doctor", "/login"]; // Add more if needed
+
+  const shouldHideFooter = hideFooterRoutes.includes(location.pathname);
+
+  return (
+    <>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register-patient" element={<RegisterPatient />} />
+        <Route path="/register-doctor" element={<RegisterDoctor />} />
+
+        {/* Patient routes */}
+        <Route path="/patient/dashboard" element={<PatientDashboard />} />
+        <Route path="/patient/upload-report" element={<UploadReport />} />
+        <Route path="/patient/hospitals" element={<Hospitals />} />
+        <Route path="/patient/medicines" element={<Medicines />} />
+        <Route path="/patient/appointments" element={<PatientAppointments />} />
+        <Route path="/patient/consultation" element={<PatientConsultation />} />
+        <Route path="/patient/assistant" element={<Assistant />} />
+
+        {/* Doctor routes */}
+        <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
+        <Route path="/doctor/reports" element={<Reports />} />
+        <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+        <Route path="/doctor/consultation" element={<DoctorConsultation />} />
+        <Route path="/doctor/prescriptions" element={<Prescriptions />} />
+
+        {/* Admin routes */}
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/approve-doctors" element={<ApproveDoctors />} />
+        <Route path="/admin/manage-users" element={<ManageUsers />} />
+      </Routes>
+
+      {!shouldHideFooter && <Footer />}
+    </>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register-patient" element={<RegisterPatient />} />
-          <Route path="/register-doctor" element={<RegisterDoctor />} />
-
-          {/* Patient routes */}
-          <Route path="/patient/dashboard" element={<PatientDashboard />} />
-          <Route path="/patient/upload-report" element={<UploadReport />} />
-          <Route path="/patient/hospitals" element={<Hospitals />} />
-          <Route path="/patient/medicines" element={<Medicines />} />
-          <Route path="/patient/appointments" element={<PatientAppointments />} />
-          <Route path="/patient/consultation" element={<PatientConsultation />} />
-          <Route path="/patient/assistant" element={<Assistant />} />
-
-          {/* Doctor routes */}
-          <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-          <Route path="/doctor/reports" element={<Reports />} />
-          <Route path="/doctor/appointments" element={<DoctorAppointments />} />
-          <Route path="/doctor/consultation" element={<DoctorConsultation />} />
-          <Route path="/doctor/prescriptions" element={<Prescriptions />} />
-
-          {/* Admin routes */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/approve-doctors" element={<ApproveDoctors />} />
-          <Route path="/admin/manage-users" element={<ManageUsers />} />
-        </Routes>
-        <Footer />
+        <AppContent />
       </Router>
     </AuthProvider>
   );

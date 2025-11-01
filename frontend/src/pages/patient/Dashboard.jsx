@@ -1,238 +1,137 @@
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
-import {
-  FileText,
-  Hospital,
-  Pill,
-  Calendar,
-  Video,
-  MessageCircle,
-  Activity,
-  Clock,
-  TrendingUp,
-  Heart
-} from "lucide-react";
+import { FileText, Hospital, Pill, Calendar, Video, MessageCircle, Heart, Brain, Clock } from "lucide-react";
+import React from "react";
 
 export default function PatientDashboard() {
   const navigate = useNavigate();
 
   const features = [
-    {
-      title: "Upload Medical Report",
-      desc: "Get instant AI-powered analysis of your medical reports in simple language",
-      icon: FileText,
-      path: "/patient/upload-report",
-      color: "from-emerald-500 to-teal-600",
-      bgColor: "bg-emerald-50",
-      iconColor: "text-emerald-600"
-    },
-    {
-      title: "Find Hospitals",
-      desc: "Locate nearby hospitals, clinics, and healthcare facilities on map",
-      icon: Hospital,
-      path: "/patient/hospitals",
-      color: "from-blue-500 to-cyan-600",
-      bgColor: "bg-blue-50",
-      iconColor: "text-blue-600"
-    },
-    {
-      title: "Medicine Information",
-      desc: "Search for medicines, check availability, and get detailed drug information",
-      icon: Pill,
-      path: "/patient/medicines",
-      color: "from-purple-500 to-pink-600",
-      bgColor: "bg-purple-50",
-      iconColor: "text-purple-600"
-    },
-    {
-      title: "Book Appointment",
-      desc: "Schedule appointments with verified doctors and manage your visits",
-      icon: Calendar,
-      path: "/patient/appointments",
-      color: "from-orange-500 to-red-600",
-      bgColor: "bg-orange-50",
-      iconColor: "text-orange-600"
-    },
-    {
-      title: "Video Consultation",
-      desc: "Connect with doctors through secure video calls from anywhere",
-      icon: Video,
-      path: "/patient/consultation",
-      color: "from-teal-500 to-emerald-600",
-      bgColor: "bg-teal-50",
-      iconColor: "text-teal-600"
-    },
-    {
-      title: "AI Health Assistant",
-      desc: "Get instant answers to your health questions from our AI chatbot",
-      icon: MessageCircle,
-      path: "/patient/assistant",
-      color: "from-indigo-500 to-purple-600",
-      bgColor: "bg-indigo-50",
-      iconColor: "text-indigo-600"
-    }
+    { title: "Find Hospitals", desc: "Locate nearby clinics and hospitals", icon: Hospital, path: "/patient/hospitals" },
+    { title: "Medicine Info", desc: "Search medicines and check availability", icon: Pill, path: "/patient/medicines" },
+    { title: "Book Appointment", desc: "Schedule visits with doctors", icon: Calendar, path: "/patient/appointments" },
+    { title: "Video Consultation", desc: "Connect with doctors online", icon: Video, path: "/patient/consultation" }
   ];
 
   const stats = [
-    { label: "Total Reports", value: "12", icon: FileText, color: "text-emerald-600" },
-    { label: "Appointments", value: "3", icon: Calendar, color: "text-blue-600" },
-    { label: "Health Score", value: "85%", icon: Activity, color: "text-purple-600" }
+    { label: "Reports Uploaded", value: "12", icon: FileText },
+    { label: "Appointments", value: "3", icon: Calendar },
+    { label: "Health Score", value: "85%", icon: Heart }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar userType="patient" userName="John Doe" />
+    <div className="relative min-h-screen overflow-hidden">
+  {/* Background gradient */}
+  <div className="absolute inset-0 bg-gradient-to-br from-[#D4F9E9]/50 to-[#0E9F80]/25"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Welcome back, John! 👋
-          </h1>
-          <p className="text-gray-600">Here's what's happening with your health today</p>
+  {/* Floating blobs */}
+  <div className="absolute w-72 h-72 bg-[#D4F9E9]/30 rounded-full filter blur-3xl top-20 left-10 animate-blob"></div>
+  <div className="absolute w-96 h-96 bg-[#0E9F86]/20 rounded-full filter blur-3xl top-40 right-10 animate-blob animation-delay-2000"></div>
+  <div className="absolute w-72 h-72 bg-[#D4F9E9]/25 rounded-full filter blur-3xl bottom-20 left-1/3 animate-blob animation-delay-4000"></div>
+
+  {/* Content goes here */}
+  <div className="relative z-10">
+<Navbar userType="patient" userName="John Doe" />
+
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        {/* Welcome */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-[#0E9F86] mb-2">Hello, John!</h1>
+          <p className="text-gray-700 text-lg">Here's your health snapshot today</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats */}
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
-              <div
-                key={stat.label}
-                className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-600 text-sm mb-1">{stat.label}</p>
-                    <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                  </div>
-                  <div className={`${stat.color} bg-opacity-10 p-3 rounded-xl`}>
-                    <Icon className={`w-8 h-8 ${stat.color}`} />
-                  </div>
+              <div key={stat.label} className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-transform hover:scale-105 flex items-center gap-4">
+                <div className="bg-[#0E9F86]/20 p-3 rounded-xl">
+                  <Icon className="w-8 h-8 text-[#0E9F86]" />
+                </div>
+                <div>
+                  <p className="text-gray-700 text-sm">{stat.label}</p>
+                  <p className="text-2xl font-bold text-[#0E9F86]">{stat.value}</p>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Quick Actions Section */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        {/* AI Assistant (OCR + Chatbot Combined) */}
+        <div className="bg-white rounded-3xl p-8 shadow-md hover:shadow-xl transition-transform hover:scale-105 mb-12 flex flex-col md:flex-row items-center gap-8">
+          <div className="bg-[#0E9F86]/10 p-6 rounded-2xl flex-shrink-0">
+            <Brain className="w-16 h-16 text-[#0E9F86]" />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <h2 className="text-2xl font-bold text-[#0E9F86] mb-2">AI Health Assistant</h2>
+            <p className="text-gray-700 mb-4">
+              Upload your medical reports or prescriptions and chat with our AI assistant to get instant insights and guidance on your health.
+            </p>
+            <button
+              onClick={() => navigate("/patient/assistant")}
+              className="bg-[#0E9F86] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#0c7a6c] transition"
+            >
+              Launch Assistant
+            </button>
+          </div>
         </div>
 
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Quick Actions */}
+        <h2 className="text-2xl font-bold text-[#0E9F86] mb-6">Quick Actions</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature) => {
             const Icon = feature.icon;
             return (
               <div
                 key={feature.title}
                 onClick={() => navigate(feature.path)}
-                className="group bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-100 hover:scale-105"
+                className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg hover:scale-105 transition-transform cursor-pointer flex flex-col items-center text-center gap-3"
               >
-                {/* Icon */}
-                <div className={`${feature.bgColor} w-14 h-14 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <Icon className={`w-7 h-7 ${feature.iconColor}`} />
+                <div className="bg-[#0E9F86]/10 p-4 rounded-xl">
+                  <Icon className="w-8 h-8 text-[#0E9F86]" />
                 </div>
-
-                {/* Title */}
-                <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
-                  {feature.title}
-                </h3>
-
-                {/* Description */}
-                <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                  {feature.desc}
-                </p>
-
-                {/* CTA */}
-                <div className={`inline-flex items-center text-sm font-semibold bg-gradient-to-r ${feature.color} bg-clip-text text-transparent group-hover:gap-2 transition-all`}>
-                  Get Started
-                  <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
-                </div>
+                <h3 className="text-lg font-semibold text-gray-800">{feature.title}</h3>
+                <p className="text-gray-600 text-sm">{feature.desc}</p>
               </div>
             );
           })}
         </div>
 
-        {/* Recent Activity Section */}
-        <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-600" />
-              Recent Activity
-            </h2>
-            <button className="text-emerald-600 text-sm font-medium hover:text-emerald-700">
-              View All
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-4 p-3 bg-emerald-50 rounded-xl">
-              <FileText className="w-5 h-5 text-emerald-600" />
-              <div className="flex-1">
-                <p className="text-gray-800 font-medium">Blood Test Report Uploaded</p>
-                <p className="text-gray-500 text-sm">2 hours ago</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-xl">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              <div className="flex-1">
-                <p className="text-gray-800 font-medium">Appointment with Dr. Smith</p>
-                <p className="text-gray-500 text-sm">Tomorrow at 10:00 AM</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 p-3 bg-purple-50 rounded-xl">
-              <MessageCircle className="w-5 h-5 text-purple-600" />
-              <div className="flex-1">
-                <p className="text-gray-800 font-medium">AI Assistant Query</p>
-                <p className="text-gray-500 text-sm">Yesterday</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Health Tip */}
-        <div className="mt-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg">
-          <div className="flex items-start gap-4">
-            <Heart className="w-8 h-8 flex-shrink-0" fill="white" />
-            <div>
-              <h3 className="text-xl font-bold mb-2">💡 Health Tip of the Day</h3>
-              <p className="text-emerald-50">
-                Drink at least 8 glasses of water daily to keep your body hydrated and support kidney function. 
-                Stay healthy! 🌟
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+        {/* Upcoming Appointment / Reminder */}
+<div className="mt-8 bg-white rounded-2xl p-6  shadow-lg">
+  <div className=" flex items-start gap-4">
+    <Clock className="text-[#0E9F86] w-8 h-8 flex-shrink-0" />
+    <div>
+      <h3 className="text-gray-800 text-xl font-bold mb-2">Upcoming Appointment</h3>
+      <p className="text-gray-600">
+        Next Appointment: <span className="font-semibold">Dr. Smith</span> on <span className="font-semibold">Nov 3, 10:00 AM</span>
+      </p>
+      <p className="text-gray-600 mt-1">
+        Remember to keep your medical reports ready and arrive 10 minutes early.
+      </p>
     </div>
+  </div>
+</div>
+
+      </div>
+  </div>
+
+  {/* Styles for animation */}
+  <style jsx>{`
+    @keyframes blob {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(30px,-50px) scale(1.1); }
+      66% { transform: translate(-20px,20px) scale(0.9); }
+    }
+    .animate-blob { animation: blob 10s infinite; }
+    .animation-delay-2000 { animation-delay: 2s; }
+    .animation-delay-4000 { animation-delay: 4s; }
+  `}</style>
+</div>
+
+
   );
 }
 
-
-// ==========================================
-// REUSABLE CARD COMPONENT (If needed separately)
-// src/components/Card.jsx
-// ==========================================
-
-export function Card({ title, desc, icon: Icon, onClick, color = "from-emerald-500 to-teal-600", bgColor = "bg-emerald-50", iconColor = "text-emerald-600" }) {
-  return (
-    <div
-      onClick={onClick}
-      className="group bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-100 hover:scale-105"
-    >
-      <div className={`${bgColor} w-14 h-14 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-        <Icon className={`w-7 h-7 ${iconColor}`} />
-      </div>
-      <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">
-        {title}
-      </h3>
-      <p className="text-gray-600 text-sm leading-relaxed mb-4">{desc}</p>
-      <div className={`inline-flex items-center text-sm font-semibold bg-gradient-to-r ${color} bg-clip-text text-transparent group-hover:gap-2 transition-all`}>
-        Get Started
-        <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
-      </div>
-    </div>
-  );
-}

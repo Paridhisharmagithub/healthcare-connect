@@ -185,7 +185,6 @@ const RegisterDoctor = () => {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
-            <span>✅</span>
             Verification required after registration
           </p>
         </div>
