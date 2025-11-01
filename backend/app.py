@@ -1,150 +1,205 @@
+# app.py (full updated with correct Gemini)
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import firebase_admin
 from firebase_admin import credentials, firestore
-import requests
-import os
-from dotenv import load_dotenv
-import time
+import firebase_admin
+import google.generativeai as genai
 import json
 import os
-import requests
-from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+import logging
 
-load_dotenv() 
-GEMINI_KEY = os.getenv("GEMINI_KEY")
-AI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+# -------------------- Load environment --------------------
+load_dotenv()
 
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ai-health-backend")
 
 app = Flask(__name__)
-CORS(app)
 
+# -------------------- CORS --------------------
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
-with open("indian_medicine_data.json", "r", encoding="utf-8") as f:
-    medicines = json.load(f)
+# -------------------- Gemini AI Setup --------------------
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")  # updated default
 
-# Firebase Initialization
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+if not GEMINI_API_KEY:
+    logger.warning("GEMINI_API_KEY not found in .env (AI features will be disabled).")
+    model = None
+else:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        logger.info("Gemini configured with model: %s", GEMINI_MODEL)
+    except Exception as e:
+        logger.exception("Failed to configure Gemini: %s", e)
+        GEMINI_API_KEY = None
+        model = None
 
+# -------------------- Firebase Setup --------------------
+DB_AVAILABLE = False
+try:
+    cred_path = os.getenv("FIREBASE_SERVICE_ACCOUNT", "serviceAccountKey.json")
+    if os.path.exists(cred_path):
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        DB_AVAILABLE = True
+        logger.info("Firebase initialized.")
+    else:
+        logger.warning("Firebase service account not found at %s — skipping Firebase init.", cred_path)
+except Exception as e:
+    logger.exception("Firebase init failed: %s", e)
+    DB_AVAILABLE = False
 
-# -------------------- Patient APIs --------------------
+# -------------------- Medicine Data --------------------
+MEDICINES = []
+try:
+    with open("indian_medicine_data.json", "r", encoding="utf-8") as f:
+        MEDICINES = json.load(f)
+    logger.info("Loaded medicine dataset: %d items", len(MEDICINES))
+except Exception as e:
+    logger.warning("Could not load medicine data: %s", e)
+
+# -------------------- Health Assistant Prompt --------------------
+HEALTH_ASSISTANT_PROMPT = (
+    "You are a helpful AI health assistant. Provide accurate general health information, "
+    "explain terms simply, and always remind users to consult a qualified medical professional when needed. "
+    "Do not provide diagnoses or prescriptions. Keep answers concise and empathetic."
+)
+
+# -------------------- Utilities --------------------
+def safe_json_req():
+    try:
+        return request.get_json(force=True)
+    except Exception:
+        return None
+
+# -------------------- Routes --------------------
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({
+        "status": "healthy",
+        "gemini_configured": bool(model),
+        "message": "AI Health Assistant API is running"
+    }), 200
+
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    if not GEMINI_API_KEY or not model:
+        return jsonify({"success": False, "error": "Gemini API key not configured on server."}), 503
+
+    data = safe_json_req()
+    if not data or "message" not in data:
+        return jsonify({"success": False, "error": "Message is required."}), 400
+
+    user_message = (data.get("message") or "").strip()
+    if not user_message:
+        return jsonify({"success": False, "error": "Message cannot be empty."}), 400
+
+    # Emergency detection
+    emergency_keywords = [
+        "chest pain", "difficulty breathing", "severe bleeding",
+        "unconscious", "heart attack", "stroke", "can't breathe", "cannot breathe"
+    ]
+    if any(k in user_message.lower() for k in emergency_keywords):
+        emergency_response = (
+            "🚨 EMERGENCY ALERT 🚨\n\n"
+            "The symptoms you described may be serious. Please:\n"
+            "1. Call emergency services immediately (108 in India, 911 in US)\n"
+            "2. Go to the nearest emergency room\n"
+            "3. Do not delay — seek immediate medical attention."
+        )
+        return jsonify({"success": True, "response": emergency_response, "is_emergency": True}), 200
+
+    # Build prompt with optional history
+    chat_history = data.get("history", []) or []
+    conversation = ""
+    for msg in chat_history[-5:]:
+        conversation += f"User: {msg.get('user','')}\nAssistant: {msg.get('assistant','')}\n"
+
+    full_prompt = f"{HEALTH_ASSISTANT_PROMPT}\n\n{conversation}\nUser: {user_message}\nAssistant:"
+    logger.info("Prompt length: %d chars", len(full_prompt))
+
+    try:
+        gen_resp = model.generate_content(full_prompt)
+        ai_text = getattr(gen_resp, "text", None) or str(gen_resp)
+        ai_text = ai_text.strip()
+        logger.info("Generated reply length: %d chars", len(ai_text))
+        return jsonify({"success": True, "response": ai_text, "is_emergency": False}), 200
+    except Exception as e:
+        logger.exception("Gemini call failed: %s", e)
+        return jsonify({"success": False, "error": "AI generation failed", "details": str(e)}), 500
+
+# -------------------- Patient / Appointments / Medicine --------------------
 @app.route("/api/register-patient", methods=["POST"])
 def register_patient():
-    data = request.json
-    db.collection("patients").document(data["uid"]).set(data)
-    return jsonify({"status":"success"})
-
+    data = safe_json_req()
+    if not data:
+        return jsonify({"status": "error", "message": "Invalid JSON"}), 400
+    if DB_AVAILABLE:
+        try:
+            db.collection("patients").document(data["uid"]).set(data)
+        except Exception as e:
+            logger.exception("Failed to save patient: %s", e)
+            return jsonify({"status": "error", "message": "DB write failed"}), 500
+    return jsonify({"status": "success"}), 200
 
 @app.route("/api/appointments", methods=["GET"])
 def get_appointments():
-    docs = db.collection("appointments").stream()
-    appointments = [doc.to_dict() for doc in docs]
-    return jsonify(appointments)
-
+    if DB_AVAILABLE:
+        try:
+            docs = db.collection("appointments").stream()
+            appointments = [doc.to_dict() for doc in docs]
+            return jsonify(appointments), 200
+        except Exception as e:
+            logger.exception("Failed to fetch appointments: %s", e)
+            return jsonify({"status": "error", "message": "DB read failed"}), 500
+    return jsonify([]), 200
 
 @app.route("/api/book-appointment", methods=["POST"])
 def book_appointment():
-    data = request.json
-    db.collection("appointments").add(data)
-    return jsonify({"status":"booked"})
-
-
-@app.route("/api/upload-report", methods=["POST"])
-def upload_report():
-    file = request.files['file']
-    # TODO: Upload to Azure blob and OCR processing
-    ocr_text = "Sample OCR text"  # Replace with Azure OCR result
-    db.collection("reports").add({
-        "filename": file.filename,
-        "ocr_text": ocr_text
-    })
-    return jsonify({"ocr_text": ocr_text, "file_url": f"/reports/{file.filename}"})
-
+    data = safe_json_req()
+    if DB_AVAILABLE:
+        try:
+            db.collection("appointments").add(data)
+        except Exception as e:
+            logger.exception("Failed to book appointment: %s", e)
+            return jsonify({"status": "error", "message": "DB write failed"}), 500
+    return jsonify({"status": "booked"}), 200
 
 @app.route("/api/search-medicine", methods=["GET"])
 def search_medicine():
-    """
-    Search medicines by name, type, manufacturer.
-    Query params: name (str), type (str), manufacturer (str), page (int, optional)
-    Pagination: 20 results per page
-    """
-    name_query = request.args.get("name", "").lower()
-    type_query = request.args.get("type", "").lower()
-    manufacturer_query = request.args.get("manufacturer", "").lower()
+    name = (request.args.get("name") or "").lower()
     page = int(request.args.get("page", 1))
     per_page = 20
-
     filtered = []
-    for med in medicines:
-        if name_query and name_query not in med["name"].lower():
-            continue
-        if type_query and type_query not in med["type"].lower():
-            continue
-        if manufacturer_query and manufacturer_query not in med["manufacturer_name"].lower():
-            continue
-        filtered.append(med)
-
-    # Pagination
-    total_results = len(filtered)
+    for m in MEDICINES:
+        if not name or name in (m.get("name","").lower()):
+            filtered.append(m)
+    total = len(filtered)
     start = (page - 1) * per_page
     end = start + per_page
-    paginated = filtered[start:end]
-
     return jsonify({
-        "results": paginated,
-        "total_results": total_results,
+        "results": filtered[start:end],
+        "total_results": total,
         "page": page,
         "per_page": per_page
-    })
+    }), 200
 
-
-
-@app.route("/api/ai-chat", methods=["POST"])
-def ai_chat():
-    prompt = request.json.get("prompt")
-    if not prompt:
-        return jsonify({"error": "Prompt required"}), 400
-
-    headers = {
-        "Authorization": f"Bearer {GEMINI_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    # Correct payload structure for Gemini 2.5
-    payload = {
-        "input": {
-            "text": prompt
-        }
-    }
-
-    try:
-        r = requests.post(AI_ENDPOINT, headers=headers, json=payload)
-        r.raise_for_status()
-        data = r.json()
-        ai_text = data.get("candidates", [{}])[0].get("output", "")
-        return jsonify({"predictions": [{"content": ai_text}]})
-    except Exception as e:
-        print("Gemini API error:", e)
-        return jsonify({"error": "AI service error"}), 500
-
-if __name__ == "__main__":
-    app.run(debug=True)
-
-
-
-
-# -------------------- Doctor APIs --------------------
 @app.route("/api/approve-doctor", methods=["POST"])
 def approve_doctor():
-    data = request.json
-    db.collection("doctors").document(data["uid"]).update({"approved": data["status"]})
-    return jsonify({"status":"updated"})
-
+    data = safe_json_req()
+    if DB_AVAILABLE:
+        try:
+            db.collection("doctors").document(data["uid"]).update({"approved": data["status"]})
+        except Exception as e:
+            logger.exception("Failed approve doctor: %s", e)
+            return jsonify({"status": "error", "message": "DB update failed"}), 500
+    return jsonify({"status": "updated"}), 200
 
 # -------------------- Run Flask --------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    logger.info("Starting Flask on http://0.0.0.0:5000")
+    app.run(debug=True, host="0.0.0.0", port=5000)

@@ -1,31 +1,53 @@
+// src/services/api.js
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api";
+const RAW = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const API_URL = RAW.replace(/\/+$/, "").endsWith("/api")
+  ? RAW.replace(/\/+$/, "")
+  : RAW.replace(/\/+$/, "") + "/api";
 
-export const registerPatient = (data) => axios.post(`${API_URL}/register-patient`, data);
-export const getAppointments = () => axios.get(`${API_URL}/appointments`);
-export const bookAppointment = (data) => axios.post(`${API_URL}/book-appointment`, data);
-export const uploadReport = (formData) => axios.post(`${API_URL}/upload-report`, formData);
-export const chatWithAI = async (prompt) => {
-  try {
-    const res = await axios.post(`${API_URL}/ai-chat`, { prompt });
-    return res;
-  } catch (err) {
-    console.error("AI API error:", err.response?.data || err.message);
-    throw err;
-  }
+// Optional: create an axios instance for defaults (timeout, headers)
+const client = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 30000, // 30s
+});
+
+// Patient APIs
+export const registerPatient = (data) => client.post("/register-patient", data);
+export const getAppointments = () => client.get("/appointments");
+export const bookAppointment = (data) => client.post("/book-appointment", data);
+export const uploadReport = (formData) =>
+  axios.post(`${API_URL}/upload-report`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+// Chat
+export const chatWithAI = async (message, history = []) => {
+  const res = await client.post("/chat", { message, history });
+  return res.data;
 };
 
-export const approveDoctor = (uid, status) => axios.post(`${API_URL}/approve-doctor`, { uid, status });
+// Admin / other
+export const approveDoctor = (uid, status) =>
+  client.post("/approve-doctor", { uid, status });
 
-// Search medicine API
 export const searchMedicine = async (name, type = "", manufacturer = "", page = 1) => {
-  try {
-    const res = await axios.get(`${API_URL}/search-medicine`, {
-      params: { name, type, manufacturer, page },
-    });
-    return res.data;
-  } catch (error) {
-    throw error;
-  }
+  const res = await client.get("/search-medicine", {
+    params: { name, type, manufacturer, page },
+  });
+  return res.data;
+};
+
+// default export optional
+export default {
+  registerPatient,
+  getAppointments,
+  bookAppointment,
+  uploadReport,
+  chatWithAI,
+  approveDoctor,
+  searchMedicine,
 };

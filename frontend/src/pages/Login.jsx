@@ -1,7 +1,7 @@
+// src/pages/auth/Login.jsx
 import React, { useState } from "react";
 import { LogIn, Mail, Lock, ArrowLeft, Heart, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -11,7 +11,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -19,12 +18,12 @@ const Login = () => {
 
     try {
       // Simulate Firebase auth
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       console.log("Login successful:", email);
-       navigate("/patient/dashboard");
+      navigate("/patient/dashboard");
     } catch (err) {
       console.error(err);
-      setError(err.message);
+      setError(err.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -35,7 +34,7 @@ const Login = () => {
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-20 right-10 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse" style={{ animationDelay: "2s" }}></div>
       </div>
 
       {/* Back to Home Button */}
@@ -75,9 +74,7 @@ const Login = () => {
 
             {/* Email Input */}
             <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Email Address
-              </label>
+              <label className="block text-gray-700 font-medium mb-2">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
@@ -93,9 +90,7 @@ const Login = () => {
 
             {/* Password Input */}
             <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Password
-              </label>
+              <label className="block text-gray-700 font-medium mb-2">Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
@@ -155,16 +150,10 @@ const Login = () => {
 
           {/* Register Links */}
           <div className="grid grid-cols-2 gap-4">
-            <a
-              href="/register-patient"
-              className="px-4 py-3 border-2 border-emerald-200 text-emerald-700 rounded-xl font-medium hover:bg-emerald-50 transition text-center"
-            >
+            <a href="/register-patient" className="px-4 py-3 border-2 border-emerald-200 text-emerald-700 rounded-xl font-medium hover:bg-emerald-50 transition text-center">
               Register as Patient
             </a>
-            <a
-              href="/register-doctor"
-              className="px-4 py-3 border-2 border-teal-200 text-teal-700 rounded-xl font-medium hover:bg-teal-50 transition text-center"
-            >
+            <a href="/register-doctor" className="px-4 py-3 border-2 border-teal-200 text-teal-700 rounded-xl font-medium hover:bg-teal-50 transition text-center">
               Register as Doctor
             </a>
           </div>
