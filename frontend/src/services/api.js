@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const RAW = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const RAW = process.env.REACT_APP_API_URL || "http://localhost:4000";
 const API_URL = RAW.replace(/\/+$/, "").endsWith("/api")
   ? RAW.replace(/\/+$/, "")
   : RAW.replace(/\/+$/, "") + "/api";
