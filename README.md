@@ -48,11 +48,12 @@ Book appointments, chat with an AI health assistant, upload reports, search medi
 - **Lucide-React** – icons & UI enhancements  
 
 ### Backend
-- **Python Flask** – REST API server  
-- **Flask-CORS** – cross-origin support  
-- **Firebase Firestore** – secure database  
-- **Firebase Admin SDK** – backend operations  
-- **dotenv** – environment variables  
+- **Node.js** – API gateway for handling client requests, routing, and business logic
+- **Python Flask** – AI and data-processing microservice exposing REST APIs
+- **Flask-CORS** – Enables controlled cross-origin communication between services
+- **Firebase Firestore** – Secure, scalable NoSQL database for users, appointments, and chat history
+- **Firebase Admin SDK** – Server-side authentication and privileged database operations
+- **dotenv** – Secure management of environment variables and secrets
 
 ### AI & OCR
 - **Google Gemini API** – AI health assistant  
