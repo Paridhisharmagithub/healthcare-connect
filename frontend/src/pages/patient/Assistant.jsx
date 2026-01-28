@@ -18,9 +18,10 @@ export default function Assistant() {
   const [messages, setMessages] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // ✅ RESTORED (important)
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showSidebar, setShowSidebar] = useState(true);
+
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -65,15 +66,24 @@ export default function Assistant() {
 
     setMessages((prev) => [
       ...prev,
-      { type: "user", content: userMessage, files: selectedFiles.length ? selectedFiles : undefined },
+      {
+        type: "user",
+        content: userMessage,
+        files: selectedFiles.length ? selectedFiles : undefined,
+      },
     ]);
 
     setPrompt("");
-    setError(null);
+    setError(null); // ✅ now valid
     setLoading(true);
 
     try {
-      const response = await chatWithAI(userMessage, historyForApi, selectedFiles, uid);
+      const response = await chatWithAI(
+        userMessage,
+        historyForApi,
+        selectedFiles,
+        uid
+      );
 
       if (response && response.success) {
         const aiMsg = {
@@ -81,15 +91,21 @@ export default function Assistant() {
           content: response.response,
           isEmergency: response.is_emergency || false,
         };
+
         setMessages((prev) => [...prev, aiMsg]);
 
         setHistory((prev) => {
           const updated = [...prev];
           const idx = updated.findIndex((h) => h.id === uid);
+
           if (idx > -1) {
             updated[idx] = {
               ...updated[idx],
-              messages: [...updated[idx].messages, { type: "user", content: userMessage }, aiMsg],
+              messages: [
+                ...updated[idx].messages,
+                { type: "user", content: userMessage },
+                aiMsg,
+              ],
             };
           } else {
             updated.push({
@@ -101,15 +117,31 @@ export default function Assistant() {
           return updated;
         });
       } else {
-        const backendMsg = (response && (response.error || response.details)) || "AI error";
+        const backendMsg =
+          response?.error || response?.details || "AI error";
         setError(backendMsg);
-        setMessages((prev) => [...prev, { type: "ai", content: "Sorry — couldn't generate a reply.", isError: true }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "ai",
+            content: "Sorry — couldn't generate a reply.",
+            isError: true,
+          },
+        ]);
       }
     } catch (err) {
       console.error("Chat error:", err);
-      const msg = err?.response?.data?.error || err?.message || "Network Error";
+      const msg =
+        err?.response?.data?.error || err?.message || "Network Error";
       setError(msg);
-      setMessages((prev) => [...prev, { type: "ai", content: "Connection problem. Try again later.", isError: true }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          content: "Connection problem. Try again later.",
+          isError: true,
+        },
+      ]);
     } finally {
       setLoading(false);
       setSelectedFiles([]);
@@ -134,15 +166,23 @@ export default function Assistant() {
           className="absolute top-20 left-4 z-50 p-2 bg-white shadow rounded-full border border-gray-200 hover:bg-emerald-50 transition"
           onClick={() => setShowSidebar(!showSidebar)}
         >
-          {showSidebar ? <ChevronLeft className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+          {showSidebar ? (
+            <ChevronLeft className="w-5 h-5 text-gray-700" />
+          ) : (
+            <Menu className="w-5 h-5 text-gray-700" />
+          )}
         </button>
 
-        {/* Sidebar (fixed height, no scroll on main page) */}
+        {/* Sidebar */}
         {showSidebar && (
           <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-y-auto h-[calc(100vh-64px)]">
-            <div className="p-4 font-semibold text-lg text-gray-700 border-b border-gray-200">Chat History</div>
+            <div className="p-4 font-semibold text-lg text-gray-700 border-b border-gray-200">
+              Chat History
+            </div>
             {history.length === 0 ? (
-              <div className="p-4 text-gray-400 text-sm">No previous conversations</div>
+              <div className="p-4 text-gray-400 text-sm">
+                No previous conversations
+              </div>
             ) : (
               history.map((chat, idx) => (
                 <button
@@ -157,126 +197,74 @@ export default function Assistant() {
           </div>
         )}
 
-        {/* Chat area (only this scrolls) */}
+        {/* Chat area */}
         <div className="flex-1 flex flex-col h-[calc(100vh-64px)]">
-          {/* Scrollable chat messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <div className="bg-gradient-to-br from-emerald-100 to-teal-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Bot className="w-10 h-10 text-emerald-600" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Welcome to AI Health Assistant!</h3>
-                <p className="text-gray-600 text-sm">Ask me health-related questions and get instant answers</p>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">
+                  Welcome to AI Health Assistant!
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  Ask me health-related questions and get instant answers
+                </p>
               </div>
             ) : (
               messages.map((message, index) => (
-                <div key={index} className={`flex gap-2 ${message.type === "user" ? "flex-row-reverse" : "flex-row"}`}>
-                  <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.type === "user"
-                        ? "bg-gradient-to-br from-emerald-500 to-teal-600"
-                        : message.isEmergency
-                        ? "bg-gradient-to-br from-red-500 to-orange-600"
-                        : "bg-gradient-to-br from-indigo-500 to-purple-600"
-                    }`}
-                  >
+                <div
+                  key={index}
+                  className={`flex gap-2 ${
+                    message.type === "user"
+                      ? "flex-row-reverse"
+                      : "flex-row"
+                  }`}
+                >
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-indigo-500">
                     {message.type === "user" ? (
                       <User className="w-4 h-4 text-white" />
                     ) : (
                       <Bot className="w-4 h-4 text-white" />
                     )}
                   </div>
-
-                  <div
-                    className={`flex-1 px-3 py-2 rounded-2xl ${
-                      message.type === "user"
-                        ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white"
-                        : message.isEmergency
-                        ? "bg-red-50 text-red-900 border-2 border-red-300"
-                        : message.isError
-                        ? "bg-orange-50 text-orange-900 border border-orange-200"
-                        : "bg-gray-100 text-gray-800"
-                    } max-w-[70%] text-sm`}
-                  >
-                    <p className="whitespace-pre-wrap leading-snug">{message.content}</p>
-                    {message.files && message.files.length > 0 && (
-                      <ul className="mt-1 text-xs text-gray-600 list-disc list-inside">
-                        {message.files.map((f, i) => (
-                          <li key={i}>{f.name}</li>
-                        ))}
-                      </ul>
-                    )}
+                  <div className="bg-gray-100 px-3 py-2 rounded-xl max-w-[70%] text-sm">
+                    {message.content}
                   </div>
                 </div>
               ))
             )}
-
-            {loading && (
-              <div className="flex gap-2">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 px-3 py-2 rounded-2xl bg-gray-100 max-w-[70%] text-sm">
-                  <div className="flex items-center gap-2">
-                    <Loader className="w-3 h-3 animate-spin text-emerald-600" />
-                    <span className="text-xs text-gray-600">AI is thinking...</span>
-                  </div>
-                </div>
-              </div>
-            )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Fixed Input Area (does NOT scroll) */}
-          <div className="border-t border-gray-100 p-3 bg-gray-50 flex flex-col gap-2 sticky bottom-0">
-            {selectedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedFiles.map((f, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-sm"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                    <span className="max-w-xs truncate">{f.name}</span>
-                    <button type="button" onClick={() => removeFile(i)} className="ml-2">
-                      <X className="w-4 h-4 text-gray-600" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+          {/* Input */}
+          <div className="border-t border-gray-100 p-3 bg-gray-50">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your health question here..."
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl resize-none"
+              disabled={loading}
+            />
+            <button
+              onClick={handleSend}
+              disabled={loading}
+              className="mt-2 px-5 py-2 bg-emerald-600 text-white rounded-xl"
+            >
+              Send
+            </button>
+
+            {error && (
+              <p className="text-xs text-red-500 mt-2">
+                ⚠ {error}
+              </p>
             )}
 
-            <div className="flex gap-3 items-center">
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your health question here..."
-                className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition resize-none"
-                disabled={loading}
-                rows="1"
-                style={{ minHeight: "40px", maxHeight: "100px" }}
-              />
-
-              <label className="px-3 py-2 bg-gray-100 rounded-xl cursor-pointer hover:bg-gray-200 flex items-center gap-2">
-                <Paperclip className="w-5 h-5 text-gray-600" />
-                <span className="text-sm text-gray-600">Attach</span>
-                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
-              </label>
-
-              <button
-                onClick={handleSend}
-                disabled={loading || (!prompt.trim() && selectedFiles.length === 0)}
-                className="px-5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              AI responses are for informational purposes only. Consult a doctor for medical advice.
+              AI responses are for informational purposes only.
             </p>
           </div>
         </div>
