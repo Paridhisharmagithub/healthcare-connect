@@ -36,11 +36,12 @@ You are a science-based AI health assistant.
 # ---------------- Medicine Data ----------------
 MEDICINES = []
 
-try:
-    with open("indian_medicine_data.json", "r", encoding="utf-8") as f:
-        MEDICINES = json.load(f)
-except Exception as e:
-    logger.warning(f"Could not load medicine data: {e}")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "indian_medicine_data.json")
+
+with open(DATA_PATH, "r", encoding="utf-8") as f:
+    MEDICINES = json.load(f)
 
 # ---------------- Utils ----------------
 def extract_image(file):
