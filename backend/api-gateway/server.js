@@ -106,7 +106,8 @@ app.get("/api/search-medicine", async (req, res) => {
 
 
 
-// ---------------- Start ----------------
-app.listen(4000, () => {
-  console.log("Node API running on port 4000");
+const PORT = process.env.PORT || 4000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Node API running on port ${PORT}`);
 });
