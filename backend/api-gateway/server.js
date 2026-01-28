@@ -14,12 +14,27 @@ app.use(cors());
 app.use(express.json());
 
 // ---------------- Firebase ----------------
+let serviceAccount;
+
+if (
+  process.env.FIREBASE_SERVICE_ACCOUNT &&
+  process.env.FIREBASE_SERVICE_ACCOUNT.trim().startsWith("{")
+) {
+  // ✅ Render / production: JSON directly from env
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  // ✅ Local development: read from file path
+  serviceAccount = JSON.parse(
+    fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT, "utf8")
+  );
+}
+
 admin.initializeApp({
-  credential: admin.credential.cert(
-    JSON.parse(fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT))
-  )
+  credential: admin.credential.cert(serviceAccount),
 });
+
 const db = admin.firestore();
+
 
 // ---------------- Health ----------------
 app.get("/health", (req, res) => {
