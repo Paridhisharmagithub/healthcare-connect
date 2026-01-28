@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { approveDoctor } from "../../services/api";
 import Navbar from "../../components/Navbar";
 

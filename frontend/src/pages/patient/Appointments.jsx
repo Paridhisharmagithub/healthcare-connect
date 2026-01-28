@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getAppointments, bookAppointment } from "../../services/api";
 import Navbar from "../../components/Navbar";
-import { Calendar, Clock, User, Plus, CheckCircle, XCircle, Loader } from "lucide-react";
+import { Calendar, Clock, User, Plus, CheckCircle, Loader } from "lucide-react";
 
 export default function Appointments() {
   const [appointments, setAppointments] = useState([]);

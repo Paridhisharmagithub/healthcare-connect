@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { uploadReport } from "../../services/api";
 import Navbar from "../../components/Navbar";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader, Download } from "lucide-react";
+import { Upload, FileText, CheckCircle, Loader, Download } from "lucide-react";
 
 export default function UploadReport() {
   const [file, setFile] = useState(null);

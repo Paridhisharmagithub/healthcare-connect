@@ -2,13 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { chatWithAI } from "../../services/api";
 import Navbar from "../../components/Navbar";
 import {
-  MessageCircle,
   Send,
   Bot,
   User,
   Loader,
   Sparkles,
-  AlertCircle,
   Paperclip,
   X,
   Menu,

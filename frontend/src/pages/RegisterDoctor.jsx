@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, setDoc } from "firebase/firestore";
-import { UserPlus, Mail, Lock, User as UserIcon, ArrowLeft, Heart, Eye, EyeOff, Stethoscope } from "lucide-react";
+import { UserPlus, Mail, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Stethoscope } from "lucide-react";
 
 const RegisterDoctor = () => {
   const [name, setName] = useState("");

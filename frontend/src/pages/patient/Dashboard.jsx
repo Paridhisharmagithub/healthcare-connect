@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
-import { FileText, Hospital, Pill, Calendar, Video, MessageCircle, Heart, Brain, Clock } from "lucide-react";
+import { FileText, Hospital, Pill, Calendar, Video, Heart, Brain, Clock } from "lucide-react";
 import React from "react";
 
 export default function PatientDashboard() {

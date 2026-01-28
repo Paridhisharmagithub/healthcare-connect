@@ -49,7 +49,7 @@ export const uploadReport = (formData) =>
     headers: { "Content-Type": "multipart/form-data" },
   });
 
-export default {
+const apiService = {
   registerPatient,
   getAppointments,
   bookAppointment,
@@ -58,3 +58,5 @@ export default {
   chatWithAI,
   uploadReport,
 };
+
+export default apiService;

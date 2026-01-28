@@ -23,7 +23,7 @@ export default function Reports() {
             <div key={r.id} className="p-3 border rounded shadow">
               <h3 className="font-bold">{r.patient || "Unknown Patient"}</h3>
               <p>{r.date}</p>
-              <a href={r.file_url} target="_blank" className="text-blue-600 underline">View Report</a>
+              <a href={r.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View Report</a>
               <pre className="mt-2 text-gray-700">{r.ocr_text}</pre>
             </div>
           ))}
