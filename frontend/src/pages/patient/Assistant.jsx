@@ -2,16 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { chatWithAI } from "../../services/api";
 import Navbar from "../../components/Navbar";
 import {
-  Send,
   Bot,
   User,
-  Loader,
   Sparkles,
-  Paperclip,
-  X,
   Menu,
   ChevronLeft,
 } from "lucide-react";
+
 
 export default function Assistant() {
   const [prompt, setPrompt] = useState("");
@@ -30,15 +27,6 @@ export default function Assistant() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const handleFileChange = (e) => {
-    const newFiles = Array.from(e.target.files || []);
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
-  };
-
-  const removeFile = (index) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const clearFileInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
