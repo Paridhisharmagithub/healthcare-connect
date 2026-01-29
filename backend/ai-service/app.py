@@ -1,12 +1,19 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
-import os, json, logging, tempfile
+import os, json, logging, tempfile, sqlite3
 from dotenv import load_dotenv
 from PIL import Image
 import pytesseract
-import fitz  # PyMuPDF
 from docx import Document
+
+# ---------------- Optional PDF support ----------------
+try:
+    import fitz  # PyMuPDF
+    PDF_SUPPORTED = True
+except ImportError:
+    fitz = None
+    PDF_SUPPORTED = False
 
 # ---------------- Setup ----------------
 load_dotenv()
@@ -14,7 +21,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ai-service")
 
 app = Flask(__name__)
-CORS(app)  # internal service only
+CORS(app)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "medicine.db")
+
+def get_db():
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 # ---------------- Tesseract ----------------
 pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_PATH")
@@ -33,25 +46,19 @@ You are a science-based AI health assistant.
 - Encourage consulting a certified doctor.
 - Be empathetic and concise.
 """
-# ---------------- Medicine Data ----------------
-MEDICINES = []
-
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "indian_medicine_data.json")
-
-with open(DATA_PATH, "r", encoding="utf-8") as f:
-    MEDICINES = json.load(f)
 
 # ---------------- Utils ----------------
 def extract_image(file):
     return pytesseract.image_to_string(Image.open(file.stream))
 
 def extract_pdf(path):
+    if not PDF_SUPPORTED:
+        return "[PDF uploaded – text extraction not available]"
     text = ""
     doc = fitz.open(path)
     for page in doc:
         text += page.get_text()
+    doc.close()
     return text
 
 def extract_docx(path):
@@ -63,19 +70,52 @@ def extract_docx(path):
 def health():
     return jsonify({"status": "ok"})
 
-@app.route("/api/search-medicine", methods=["GET"])
+@app.get("/api/search-medicine")
 def search_medicine():
-    name = (request.args.get("name") or "").lower()
+    name = (request.args.get("name") or "").strip()
     page = int(request.args.get("page", 1))
     per_page = 20
+    offset = (page - 1) * per_page
 
-    filtered = [m for m in MEDICINES if not name or name in m.get("name", "").lower()]
-    start = (page - 1) * per_page
-    end = start + per_page
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            id, name, price, manufacturer_name,
+            type, pack_size_label, composition_1, composition_2
+        FROM medicines
+        WHERE LOWER(name) LIKE ?
+        LIMIT ? OFFSET ?
+    """, (f"%{name.lower()}%", per_page, offset))
+
+    rows = cur.fetchall()
+
+    cur.execute(
+        "SELECT COUNT(*) FROM medicines WHERE LOWER(name) LIKE ?",
+        (f"%{name.lower()}%",)
+    )
+    total = cur.fetchone()[0]
+
+    cur.close()
+    conn.close()
+
+    results = [
+        {
+            "id": r[0],
+            "name": r[1],
+            "price": r[2],
+            "manufacturer": r[3],
+            "type": r[4],
+            "pack_size": r[5],
+            "composition": f"{r[6]} {r[7]}".strip()
+        }
+        for r in rows
+    ]
 
     return jsonify({
-        "results": filtered[start:end],
-        "total_results": len(filtered),
+        "results": results,
+        "total_results": total,
         "page": page,
         "per_page": per_page
     })
@@ -83,14 +123,12 @@ def search_medicine():
 @app.post("/ai/chat")
 def ai_chat():
     data = request.form if request.content_type.startswith("multipart") else request.json
-
     message = data.get("message", "").strip()
     history = json.loads(data.get("history", "[]"))
 
     if not message and not request.files:
         return jsonify({"error": "Message required"}), 400
 
-    # Emergency detection
     emergency_words = [
         "chest pain", "difficulty breathing",
         "heart attack", "stroke", "unconscious"
@@ -101,7 +139,6 @@ def ai_chat():
             "is_emergency": True
         })
 
-    # OCR
     extracted = ""
     for f in request.files.getlist("files"):
         ext = os.path.splitext(f.filename)[1].lower()

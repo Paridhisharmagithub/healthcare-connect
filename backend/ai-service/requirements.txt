@@ -2,7 +2,8 @@ flask==3.0.0
 flask-cors==4.0.0
 python-dotenv==1.0.1
 google-generativeai==0.3.2
-pillow
-pytesseract
-pymupdf
-python-docx
+
+Pillow==10.2.0
+pytesseract==0.3.10
+python-docx==1.1.0
+PyMuPDF==1.24.9
