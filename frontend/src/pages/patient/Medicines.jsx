@@ -70,9 +70,12 @@ export default function Medicines() {
     setLoading(true);
     setSearched(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/search-medicine", {
-        params: { name: query, page: 1 },
-      });
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/search-medicine`,
+        {
+          params: { name: query, page: 1 },
+        }
+      );
 
       setResults(res.data.results || []);
     } catch (error) {
