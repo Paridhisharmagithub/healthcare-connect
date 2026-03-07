@@ -15,36 +15,25 @@ app.use(cors());
 app.use(express.json());
 
 // ================= Firebase Setup =================
-// ================= Firebase Setup =================
 let serviceAccount;
 
 try {
-  if (
-    process.env.FIREBASE_SERVICE_ACCOUNT &&
-    process.env.FIREBASE_SERVICE_ACCOUNT.trim().startsWith("{")
-  ) {
-    // Production (Render) – JSON directly from env variable
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
-    // Fix private key formatting for Firebase
+    // Restore newline characters in private key
     if (serviceAccount.private_key) {
       serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
     }
 
-  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // Local development – read from file path
-    serviceAccount = JSON.parse(
-      fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT, "utf8")
-    );
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+
+    console.log("Firebase initialized successfully");
   } else {
     throw new Error("FIREBASE_SERVICE_ACCOUNT not provided");
   }
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-
-  console.log("Firebase initialized successfully");
 
 } catch (err) {
   console.error("Firebase initialization failed:", err);
