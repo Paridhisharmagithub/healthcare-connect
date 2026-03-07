@@ -7,15 +7,16 @@ import {
   Sparkles,
   Menu,
   ChevronLeft,
+  Paperclip,
+  X,
 } from "lucide-react";
-
 
 export default function Assistant() {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null); // ✅ RESTORED (important)
+  const [error, setError] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showSidebar, setShowSidebar] = useState(true);
 
@@ -28,19 +29,22 @@ export default function Assistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const clearFileInput = () => {
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
   };
 
-  const loadConversation = (chat) => {
-    setMessages(chat.messages || []);
+  const removeFile = (index) => {
+    const updated = [...selectedFiles];
+    updated.splice(index, 1);
+    setSelectedFiles(updated);
   };
 
   const handleSend = async () => {
     if (!prompt.trim() && selectedFiles.length === 0) return;
     if (loading) return;
 
-    const userMessage = prompt.trim() || "[Attached files]";
+    const userMessage = prompt.trim() || "[Uploaded medical report]";
 
     const historyForApi = [
       ...messages.slice(-9),
@@ -57,85 +61,40 @@ export default function Assistant() {
       {
         type: "user",
         content: userMessage,
-        files: selectedFiles.length ? selectedFiles : undefined,
+        files: selectedFiles,
       },
     ]);
 
     setPrompt("");
-    setError(null); // ✅ now valid
+    setError(null);
     setLoading(true);
 
     try {
       const response = await chatWithAI(
         userMessage,
         historyForApi,
-        selectedFiles
+        selectedFiles,
+        uid
       );
 
-      if (response && response.response) {
-        const aiMsg = {
-          type: "ai",
-          content: response.response,
-          isEmergency: response.is_emergency || false,
-        };
+      const aiMsg = {
+        type: "ai",
+        content: response.response,
+      };
 
-        setMessages((prev) => [...prev, aiMsg]);
-
-        setHistory((prev) => {
-          const updated = [...prev];
-          const idx = updated.findIndex((h) => h.id === uid);
-
-          if (idx > -1) {
-            updated[idx] = {
-              ...updated[idx],
-              messages: [
-                ...updated[idx].messages,
-                { type: "user", content: userMessage },
-                aiMsg,
-              ],
-            };
-          } else {
-            updated.push({
-              id: uid,
-              title: userMessage.slice(0, 30),
-              messages: [{ type: "user", content: userMessage }, aiMsg],
-            });
-          }
-          return updated;
-        });
-
-      } else {
-        const backendMsg =
-          response?.error || response?.details || "AI error";
-
-        setError(backendMsg);
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "ai",
-            content: "Sorry — couldn't generate a reply.",
-            isError: true,
-          },
-        ]);
-      }
+      setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      console.error("Chat error:", err);
-      const msg =
-        err?.response?.data?.error || err?.message || "Network Error";
-      setError(msg);
+      setError("Connection problem. Try again later.");
       setMessages((prev) => [
         ...prev,
         {
           type: "ai",
           content: "Connection problem. Try again later.",
-          isError: true,
         },
       ]);
     } finally {
       setLoading(false);
       setSelectedFiles([]);
-      clearFileInput();
     }
   };
 
@@ -151,24 +110,23 @@ export default function Assistant() {
       <Navbar userType="patient" userName="John Doe" />
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar toggle */}
+        {/* Sidebar Toggle */}
         <button
-          className="absolute top-20 left-4 z-50 p-2 bg-white shadow rounded-full border border-gray-200 hover:bg-emerald-50 transition"
+          className="absolute top-20 left-4 z-50 p-2 bg-white shadow rounded-full"
           onClick={() => setShowSidebar(!showSidebar)}
         >
           {showSidebar ? (
-            <ChevronLeft className="w-5 h-5 text-gray-700" />
+            <ChevronLeft className="w-5 h-5" />
           ) : (
-            <Menu className="w-5 h-5 text-gray-700" />
+            <Menu className="w-5 h-5" />
           )}
         </button>
 
         {/* Sidebar */}
         {showSidebar && (
-          <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-y-auto h-[calc(100vh-64px)]">
-            <div className="p-4 font-semibold text-lg text-gray-700 border-b border-gray-200">
-              Chat History
-            </div>
+          <div className="w-64 bg-white border-r overflow-y-auto">
+            <div className="p-4 font-semibold border-b">Chat History</div>
+
             {history.length === 0 ? (
               <div className="p-4 text-gray-400 text-sm">
                 No previous conversations
@@ -176,85 +134,108 @@ export default function Assistant() {
             ) : (
               history.map((chat, idx) => (
                 <button
-                  key={chat.id || idx}
-                  onClick={() => loadConversation(chat)}
-                  className="text-left p-3 hover:bg-emerald-50 border-b border-gray-100 truncate text-sm"
+                  key={idx}
+                  className="text-left p-3 hover:bg-emerald-50 border-b w-full"
                 >
-                  {chat.title || `Chat ${idx + 1}`}
+                  {chat.title}
                 </button>
               ))
             )}
           </div>
         )}
 
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col h-[calc(100vh-64px)]">
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 ? (
               <div className="text-center py-12">
-                <div className="bg-gradient-to-br from-emerald-100 to-teal-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Bot className="w-10 h-10 text-emerald-600" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">
-                  Welcome to AI Health Assistant!
+                <Bot className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-gray-800">
+                  AI Health Assistant
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  Ask me health-related questions and get instant answers
+                  Upload a medical report or ask a health question.
                 </p>
               </div>
             ) : (
               messages.map((message, index) => (
                 <div
                   key={index}
-                  className={`flex gap-2 ${
-                    message.type === "user"
-                      ? "flex-row-reverse"
-                      : "flex-row"
+                  className={`flex ${
+                    message.type === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-indigo-500">
-                    {message.type === "user" ? (
-                      <User className="w-4 h-4 text-white" />
-                    ) : (
-                      <Bot className="w-4 h-4 text-white" />
-                    )}
-                  </div>
-                  <div className="bg-gray-100 px-3 py-2 rounded-xl max-w-[70%] text-sm">
+                  <div className="bg-white px-4 py-2 rounded-xl shadow text-sm max-w-[70%]">
                     {message.content}
                   </div>
                 </div>
               ))
             )}
+
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="border-t border-gray-100 p-3 bg-gray-50">
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your health question here..."
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl resize-none"
-              disabled={loading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading}
-              className="mt-2 px-5 py-2 bg-emerald-600 text-white rounded-xl"
-            >
-              Send
-            </button>
+          {/* Selected Files */}
+          {selectedFiles.length > 0 && (
+            <div className="px-4 pb-2 flex flex-wrap gap-2">
+              {selectedFiles.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 bg-white border px-3 py-1 rounded-full text-sm"
+                >
+                  {file.name}
+                  <X
+                    className="w-4 h-4 cursor-pointer"
+                    onClick={() => removeFile(index)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
-            {error && (
-              <p className="text-xs text-red-500 mt-2">
-                ⚠ {error}
-              </p>
-            )}
+          {/* Input */}
+          <div className="border-t p-3 bg-gray-50">
+            <div className="flex gap-2">
+              <button
+                onClick={() => fileInputRef.current.click()}
+                className="p-2 bg-white border rounded-lg"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.docx"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about your health or upload a report..."
+                className="flex-1 px-4 py-2 border rounded-xl resize-none"
+                disabled={loading}
+              />
+
+              <button
+                onClick={handleSend}
+                disabled={loading}
+                className="px-5 py-2 bg-emerald-600 text-white rounded-xl"
+              >
+                Send
+              </button>
+            </div>
+
+            {error && <p className="text-xs text-red-500 mt-2">⚠ {error}</p>}
 
             <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              AI responses are for informational purposes only.
+              AI responses are informational only.
             </p>
           </div>
         </div>

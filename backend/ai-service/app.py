@@ -11,8 +11,7 @@ import pytesseract
 from docx import Document
 from pymongo import MongoClient
 
-# ---------------- Optional PDF support ----------------
-
+# Optional PDF support
 try:
     import fitz  # PyMuPDF
     PDF_SUPPORTED = True
@@ -29,13 +28,12 @@ logger = logging.getLogger("ai-service")
 app = Flask(__name__)
 CORS(app)
 
-# ---------------- MongoDB Atlas Connection ----------------
+# ---------------- MongoDB Atlas ----------------
 
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db = client[os.getenv("DB_NAME")]
 collection = db[os.getenv("COLLECTION_NAME")]
-
 
 # ---------------- Tesseract ----------------
 
@@ -45,61 +43,106 @@ pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_PATH")
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel(
-os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+    os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
 )
 
-# ---------------- Prompt ----------------
+# ---------------- Prompts ----------------
 
 SYSTEM_PROMPT = """
 You are a science-based AI health assistant.
 
-* Never diagnose or prescribe.
-* Suggest lifestyle improvements.
-* Encourage consulting a certified doctor.
-* Be empathetic and concise.
-  """
+Rules:
+- Never diagnose diseases.
+- Never prescribe medicines.
+- Suggest healthy lifestyle improvements.
+- Encourage consulting a certified doctor.
+- Be empathetic and concise.
+"""
 
-# ---------------- Utils ----------------
+REPORT_PROMPT = """
+You are analyzing a medical test report.
 
-def extract_image(path_or_file):
-    """Accept either a filesystem path (str) or a Flask/Werkzeug FileStorage."""
-    if isinstance(path_or_file, str):
-        return pytesseract.image_to_string(Image.open(path_or_file))
-    # FileStorage-style object
-    return pytesseract.image_to_string(Image.open(path_or_file.stream))
+Explain the report in simple language for a patient.
 
+Tasks:
+1. Identify important lab values.
+2. Highlight abnormal values.
+3. Explain what they might indicate.
+4. Suggest lifestyle improvements.
+5. Remind the user to consult a doctor.
+
+Medical report text:
+"""
+
+# ---------------- OCR Utilities ----------------
+
+def extract_image(path):
+    """OCR from image"""
+    try:
+        text = pytesseract.image_to_string(Image.open(path))
+        return text
+    except Exception as e:
+        logger.error(f"OCR image error: {e}")
+        return ""
 
 def extract_pdf(path):
-    if not PDF_SUPPORTED:
-        return "[PDF uploaded – text extraction not available]"
+    """Extract text from PDF (supports scanned PDFs via OCR)"""
     text = ""
-    doc = fitz.open(path)
-    for page in doc:
-        text += page.get_text()
-    doc.close()
+
+    if not PDF_SUPPORTED:
+        return "[PDF uploaded but PDF extraction library not installed]"
+
+    try:
+        doc = fitz.open(path)
+
+        for page in doc:
+            page_text = page.get_text()
+
+            # If PDF has text layer
+            if page_text.strip():
+                text += page_text
+            else:
+                # scanned PDF -> convert to image -> OCR
+                pix = page.get_pixmap()
+                img_path = path + ".png"
+                pix.save(img_path)
+
+                text += pytesseract.image_to_string(Image.open(img_path))
+
+        doc.close()
+    except Exception as e:
+        logger.error(f"PDF extraction error: {e}")
+
     return text
 
-
 def extract_docx(path):
-    doc = Document(path)
-    return "\n".join(p.text for p in doc.paragraphs)
+    """Extract text from DOCX"""
+    try:
+        doc = Document(path)
+        return "\n".join(p.text for p in doc.paragraphs)
+    except Exception as e:
+        logger.error(f"DOCX extraction error: {e}")
+        return ""
 
-# ---------------- Routes ----------------
+# ---------------- Health Check ----------------
 
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
 
-# ---------------- MongoDB Medicine Search ----------------
+# ---------------- Medicine Search ----------------
 
 @app.get("/api/search-medicine")
 def search_medicine():
+
     name = (request.args.get("name") or "").strip().lower()
     page = int(request.args.get("page", 1))
+
     per_page = 20
     skip = (page - 1) * per_page
 
     query = {}
+
     if name:
         query["name"] = {"$regex": name, "$options": "i"}
 
@@ -112,6 +155,7 @@ def search_medicine():
     )
 
     results = []
+
     for m in medicines:
         results.append({
             "id": str(m.get("_id")),
@@ -120,7 +164,7 @@ def search_medicine():
             "manufacturer": m.get("manufacturer_name"),
             "type": m.get("type"),
             "pack_size": m.get("pack_size_label"),
-            "composition": f"{m.get('composition_1','')} {m.get('composition_2','')}'.strip()" if False else f"{m.get('composition_1','')} {m.get('composition_2','')}".strip()
+            "composition": f"{m.get('composition_1','')} {m.get('composition_2','')}".strip()
         })
 
     return jsonify({
@@ -130,20 +174,21 @@ def search_medicine():
         "per_page": per_page
     })
 
-
 # ---------------- AI Chat ----------------
 
 @app.post("/ai/chat")
 def ai_chat():
-    data = request.form if (request.content_type and request.content_type.startswith("multipart")) else (request.get_json(silent=True) or {})
+
+    data = request.form if request.content_type and request.content_type.startswith("multipart") else (request.get_json(silent=True) or {})
+
     message = (data.get("message") or "").strip()
 
-    # flexible history parsing (accepts JSON string or list)
     history_field = data.get("history", "[]")
+
     if isinstance(history_field, str):
         try:
             history = json.loads(history_field)
-        except Exception:
+        except:
             history = []
     else:
         history = history_field or []
@@ -156,47 +201,89 @@ def ai_chat():
         "difficulty breathing",
         "heart attack",
         "stroke",
-        "unconscious",
+        "unconscious"
     ]
 
-    if any(w in message.lower() for w in emergency_words):
+    if any(word in message.lower() for word in emergency_words):
         return jsonify({
-            "response": "🚨 EMERGENCY! Contact local emergency services immediately.",
-            "is_emergency": True,
+            "response": "🚨 EMERGENCY! Please contact local emergency services immediately.",
+            "is_emergency": True
         })
 
-    extracted = ""
+    # ---------------- Extract Uploaded Files ----------------
+
+    extracted_text = ""
+
     for f in request.files.getlist("files"):
+
         ext = os.path.splitext(f.filename)[1].lower()
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             f.save(tmp.name)
+
         try:
             if ext in [".jpg", ".jpeg", ".png"]:
-                extracted += extract_image(tmp.name)
+                extracted_text += extract_image(tmp.name)
+
             elif ext == ".pdf":
-                extracted += extract_pdf(tmp.name)
+                extracted_text += extract_pdf(tmp.name)
+
             elif ext == ".docx":
-                extracted += extract_docx(tmp.name)
+                extracted_text += extract_docx(tmp.name)
+
         finally:
             try:
                 os.unlink(tmp.name)
-            except Exception:
+            except:
                 pass
 
+    # ---------------- Conversation Context ----------------
+
     convo = ""
-    for h in (history or [])[-5:]:
+
+    for h in history[-5:]:
         convo += f"User: {h.get('user')}\nAssistant: {h.get('assistant')}\n"
 
-    prompt = f"""{SYSTEM_PROMPT}\n\n{convo}User: {message}\n\nAdditional document context:\n{extracted}\n\nAssistant:"""
+    # ---------------- Prompt Construction ----------------
 
-    result = model.generate_content(prompt)
-    text = getattr(result, "text", "") or str(result)
+    if extracted_text.strip():
+        prompt = f"""{SYSTEM_PROMPT}
+
+{REPORT_PROMPT}
+
+{extracted_text}
+
+User question: {message}
+
+Assistant:
+"""
+    else:
+        prompt = f"""{SYSTEM_PROMPT}
+
+{convo}
+
+User: {message}
+
+Assistant:
+"""
+
+    # ---------------- AI Generation ----------------
+
+    try:
+        result = model.generate_content(prompt)
+        text = getattr(result, "text", "") or str(result)
+
+    except Exception as e:
+        logger.error(f"Gemini error: {e}")
+        return jsonify({
+            "response": "AI service temporarily unavailable.",
+            "is_emergency": False
+        })
 
     return jsonify({
         "response": text.strip(),
-        "is_emergency": False,
+        "is_emergency": False
     })
-
 
 # ---------------- Run ----------------
 
