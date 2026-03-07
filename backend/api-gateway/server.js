@@ -154,10 +154,13 @@ app.post("/api/approve-doctor", async (req, res) => {
 
 // ================= Medicine Search (Proxy to Flask) =================
 app.get("/api/search-medicine", async (req, res) => {
-  try {
-    const response = await axios.get(
+    try {
+      const response = await axios.get(
       `${process.env.FLASK_AI_URL}/api/search-medicine`,
-      { params: req.query }
+      {
+        params: req.query,
+        timeout: 60000
+      }
     );
 
     res.json(response.data);
