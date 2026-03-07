@@ -23,23 +23,36 @@ export const approveDoctor = (uid, status) => client.post("/approve-doctor", { u
 
 // -------------------- Chat with optional file attachments --------------------
 export const chatWithAI = async (message, history = [], files = []) => {
-  let uid = localStorage.getItem("uid");
-  if (!uid) {
-    uid = "user-" + Date.now();
-    localStorage.setItem("uid", uid);
+  try {
+    let uid = localStorage.getItem("uid");
+
+    if (!uid) {
+      uid = "user-" + Date.now();
+      localStorage.setItem("uid", uid);
+    }
+
+    const formData = new FormData();
+    formData.append("uid", uid);
+    formData.append("message", message);
+    formData.append("history", JSON.stringify(history));
+
+    files.forEach((file) => formData.append("files", file));
+
+    const response = await axios.post(`${API_URL}/chat`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 90000, // allow Render cold start
+    });
+
+    return response.data;
+
+  } catch (error) {
+    console.error("Chat API error:", error);
+
+    return {
+      response: "Sorry — couldn't generate a reply. Please try again.",
+      is_emergency: false,
+    };
   }
-
-  const formData = new FormData();
-  formData.append("uid", uid);
-  formData.append("message", message);
-  formData.append("history", JSON.stringify(history));
-
-  files.forEach((file) => formData.append("files", file));
-
-  const response = await axios.post(`${API_URL}/chat`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return response.data;
 };
 
 
