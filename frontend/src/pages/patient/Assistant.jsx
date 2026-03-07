@@ -69,11 +69,10 @@ export default function Assistant() {
       const response = await chatWithAI(
         userMessage,
         historyForApi,
-        selectedFiles,
-        uid
+        selectedFiles
       );
 
-      if (response && response.success) {
+      if (response && response.response) {
         const aiMsg = {
           type: "ai",
           content: response.response,
@@ -104,10 +103,13 @@ export default function Assistant() {
           }
           return updated;
         });
+
       } else {
         const backendMsg =
           response?.error || response?.details || "AI error";
+
         setError(backendMsg);
+
         setMessages((prev) => [
           ...prev,
           {
