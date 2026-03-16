@@ -28,7 +28,7 @@ logger = logging.getLogger("ai-service")
 app = Flask(__name__)
 CORS(app)
 
-# ---------------- MongoDB Atlas ----------------
+# ---------------- MongoDB ----------------
 
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
@@ -37,7 +37,8 @@ collection = db[os.getenv("COLLECTION_NAME")]
 
 # ---------------- Tesseract ----------------
 
-pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_PATH")
+if os.getenv("TESSERACT_PATH"):
+    pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_PATH")
 
 # ---------------- Gemini ----------------
 
@@ -51,10 +52,17 @@ model = genai.GenerativeModel(
 SYSTEM_PROMPT = """
 You are a science-based AI health assistant.
 
-Rules:
+Formatting Rules:
+- Always structure answers with headings and subheadings.
+- Use bullet points for lists.
+- Keep answers clean and easy to read.
+- Use simple language for patients.
+- Add relevant emojis for clarity (not too many).
+
+Guidelines:
 - Never diagnose diseases.
 - Never prescribe medicines.
-- Suggest healthy lifestyle improvements.
+- Suggest lifestyle improvements.
 - Encourage consulting a certified doctor.
 - Be empathetic and concise.
 """
@@ -74,23 +82,20 @@ Tasks:
 Medical report text:
 """
 
-# ---------------- OCR Utilities ----------------
+# ---------------- OCR ----------------
 
 def extract_image(path):
-    """OCR from image"""
     try:
-        text = pytesseract.image_to_string(Image.open(path))
-        return text
+        return pytesseract.image_to_string(Image.open(path))
     except Exception as e:
         logger.error(f"OCR image error: {e}")
         return ""
 
 def extract_pdf(path):
-    """Extract text from PDF (supports scanned PDFs via OCR)"""
     text = ""
 
     if not PDF_SUPPORTED:
-        return "[PDF uploaded but PDF extraction library not installed]"
+        return ""
 
     try:
         doc = fitz.open(path)
@@ -98,33 +103,34 @@ def extract_pdf(path):
         for page in doc:
             page_text = page.get_text()
 
-            # If PDF has text layer
             if page_text.strip():
                 text += page_text
             else:
-                # scanned PDF -> convert to image -> OCR
-                pix = page.get_pixmap()
-                img_path = path + ".png"
-                pix.save(img_path)
-
-                text += pytesseract.image_to_string(Image.open(img_path))
+                # scanned PDF → OCR fallback
+                try:
+                    pix = page.get_pixmap()
+                    img_path = path + ".png"
+                    pix.save(img_path)
+                    text += extract_image(img_path)
+                except Exception as e:
+                    logger.error(f"PDF OCR fallback error: {e}")
 
         doc.close()
+
     except Exception as e:
         logger.error(f"PDF extraction error: {e}")
 
     return text
 
 def extract_docx(path):
-    """Extract text from DOCX"""
     try:
         doc = Document(path)
         return "\n".join(p.text for p in doc.paragraphs)
     except Exception as e:
-        logger.error(f"DOCX extraction error: {e}")
+        logger.error(f"DOCX error: {e}")
         return ""
 
-# ---------------- Health Check ----------------
+# ---------------- Routes ----------------
 
 @app.get("/health")
 def health():
@@ -142,7 +148,6 @@ def search_medicine():
     skip = (page - 1) * per_page
 
     query = {}
-
     if name:
         query["name"] = {"$regex": name, "$options": "i"}
 
@@ -179,7 +184,11 @@ def search_medicine():
 @app.post("/ai/chat")
 def ai_chat():
 
-    data = request.form if request.content_type and request.content_type.startswith("multipart") else (request.get_json(silent=True) or {})
+    # Safe parsing
+    if request.content_type and "multipart" in request.content_type:
+        data = request.form
+    else:
+        data = request.get_json(silent=True) or {}
 
     message = (data.get("message") or "").strip()
 
@@ -196,6 +205,7 @@ def ai_chat():
     if not message and not request.files:
         return jsonify({"error": "Message required"}), 400
 
+    # Emergency detection
     emergency_words = [
         "chest pain",
         "difficulty breathing",
@@ -210,12 +220,11 @@ def ai_chat():
             "is_emergency": True
         })
 
-    # ---------------- Extract Uploaded Files ----------------
+    # ---------------- Extract Files ----------------
 
     extracted_text = ""
 
     for f in request.files.getlist("files"):
-
         ext = os.path.splitext(f.filename)[1].lower()
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
@@ -237,15 +246,24 @@ def ai_chat():
             except:
                 pass
 
+    logger.info(f"Extracted text preview: {extracted_text[:200]}")
+
     # ---------------- Conversation Context ----------------
 
     convo = ""
-
     for h in history[-5:]:
         convo += f"User: {h.get('user')}\nAssistant: {h.get('assistant')}\n"
 
     # ---------------- Prompt Construction ----------------
 
+    # If file uploaded but extraction failed
+    if not extracted_text.strip() and request.files:
+        return jsonify({
+            "response": "⚠️ I couldn't read your report clearly. Please upload a clearer PDF or type key values (like hemoglobin, glucose).",
+            "is_emergency": False
+        })
+
+    # If extraction worked
     if extracted_text.strip():
         prompt = f"""{SYSTEM_PROMPT}
 
@@ -267,12 +285,11 @@ User: {message}
 Assistant:
 """
 
-    # ---------------- AI Generation ----------------
+    # ---------------- Gemini ----------------
 
     try:
         result = model.generate_content(prompt)
-        text = getattr(result, "text", "") or str(result)
-
+        text = result.text if hasattr(result, "text") else str(result)
     except Exception as e:
         logger.error(f"Gemini error: {e}")
         return jsonify({
