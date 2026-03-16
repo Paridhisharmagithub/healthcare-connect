@@ -3,7 +3,6 @@ import { chatWithAI } from "../../services/api";
 import Navbar from "../../components/Navbar";
 import {
   Bot,
-  User,
   Sparkles,
   Menu,
   ChevronLeft,
@@ -14,7 +13,7 @@ import {
 export default function Assistant() {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([]);
-  const [history, setHistory] = useState([]);
+  const [history] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
