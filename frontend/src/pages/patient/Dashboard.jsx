@@ -31,7 +31,7 @@ export default function PatientDashboard() {
 
   {/* Content goes here */}
   <div className="relative z-10">
-<Navbar userType="patient" userName="John Doe" />
+<Navbar userType="patient" />
 
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* Welcome */}
@@ -119,7 +119,7 @@ export default function PatientDashboard() {
   </div>
 
   {/* Styles for animation */}
-  <style jsx>{`
+  <style>{`
     @keyframes blob {
       0%, 100% { transform: translate(0,0) scale(1); }
       33% { transform: translate(30px,-50px) scale(1.1); }

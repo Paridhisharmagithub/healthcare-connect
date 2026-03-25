@@ -11,7 +11,7 @@ import pytesseract
 from docx import Document
 from pymongo import MongoClient
 
-# Optional PDF support
+# PDF support
 try:
     import fitz  # PyMuPDF
     PDF_SUPPORTED = True
@@ -30,8 +30,7 @@ CORS(app)
 
 # ---------------- MongoDB ----------------
 
-MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI)
+client = MongoClient(os.getenv("MONGO_URI"))
 db = client[os.getenv("DB_NAME")]
 collection = db[os.getenv("COLLECTION_NAME")]
 
@@ -50,54 +49,24 @@ model = genai.GenerativeModel(
 # ---------------- Prompts ----------------
 
 SYSTEM_PROMPT = """
-You are a science-based AI health assistant.
+You are a helpful AI health assistant.
 
-STRICT OUTPUT FORMAT (MANDATORY):
-
-- Always use Markdown formatting.
-- Use headings with ## and ###.
-- Use numbered sections (1, 2, 3).
-- Use bullet points with '-' only.
-- Add proper line breaks between sections.
-- Do NOT return long paragraphs.
-- Do NOT ignore formatting.
-
-Example format:
-
-## Title
-
-### 1. Section Name
-- Point 1
-- Point 2
-
-### 2. Section Name
-- Point 1
-- Point 2
-
-### Final Advice
-- Advice 1
-- Advice 2
-
-Guidelines:
-- Never diagnose diseases.
-- Never prescribe medicines.
-- Be simple and structured.
-- Encourage consulting a doctor.
+STRICT FORMAT:
+- Use Markdown
+- Use headings (##, ###)
+- Use bullet points
+- Keep answers structured
+- DO NOT say you cannot read reports
 """
 
 REPORT_PROMPT = """
-You are analyzing a medical test report.
+Analyze the medical report and explain:
 
-Explain the report in simple language for a patient.
-
-Tasks:
-1. Identify important lab values.
-2. Highlight abnormal values.
-3. Explain what they might indicate.
-4. Suggest lifestyle improvements.
-5. Remind the user to consult a doctor.
-
-Medical report text:
+1. Important values
+2. Abnormal values
+3. What it means
+4. Suggestions
+5. Final advice
 """
 
 # ---------------- OCR ----------------
@@ -124,19 +93,17 @@ def extract_pdf(path):
             if page_text.strip():
                 text += page_text
             else:
-                # scanned PDF → OCR fallback
-                try:
-                    pix = page.get_pixmap()
-                    img_path = path + ".png"
-                    pix.save(img_path)
-                    text += extract_image(img_path)
-                except Exception as e:
-                    logger.error(f"PDF OCR fallback error: {e}")
+                # OCR fallback
+                pix = page.get_pixmap()
+                img_path = path + ".png"
+                pix.save(img_path)
+
+                text += extract_image(img_path)
 
         doc.close()
 
     except Exception as e:
-        logger.error(f"PDF extraction error: {e}")
+        logger.error(f"PDF error: {e}")
 
     return text
 
@@ -172,9 +139,7 @@ def search_medicine():
     total = collection.count_documents(query)
 
     medicines = list(
-        collection.find(query)
-        .skip(skip)
-        .limit(per_page)
+        collection.find(query).skip(skip).limit(per_page)
     )
 
     results = []
@@ -202,7 +167,6 @@ def search_medicine():
 @app.post("/ai/chat")
 def ai_chat():
 
-    # Safe parsing
     if request.content_type and "multipart" in request.content_type:
         data = request.form
     else:
@@ -210,8 +174,8 @@ def ai_chat():
 
     message = (data.get("message") or "").strip()
 
+    # history parsing
     history_field = data.get("history", "[]")
-
     if isinstance(history_field, str):
         try:
             history = json.loads(history_field)
@@ -222,21 +186,6 @@ def ai_chat():
 
     if not message and not request.files:
         return jsonify({"error": "Message required"}), 400
-
-    # Emergency detection
-    emergency_words = [
-        "chest pain",
-        "difficulty breathing",
-        "heart attack",
-        "stroke",
-        "unconscious"
-    ]
-
-    if any(word in message.lower() for word in emergency_words):
-        return jsonify({
-            "response": "🚨 EMERGENCY! Please contact local emergency services immediately.",
-            "is_emergency": True
-        })
 
     # ---------------- Extract Files ----------------
 
@@ -249,7 +198,7 @@ def ai_chat():
             f.save(tmp.name)
 
         try:
-            if ext in [".jpg", ".jpeg", ".png"]:
+            if ext in [".jpg", ".png", ".jpeg"]:
                 extracted_text += extract_image(tmp.name)
 
             elif ext == ".pdf":
@@ -264,37 +213,38 @@ def ai_chat():
             except:
                 pass
 
-    logger.info(f"Extracted text preview: {extracted_text[:200]}")
+    logger.info(f"📄 Extracted text preview:\n{extracted_text[:500]}")
 
-    # ---------------- Conversation Context ----------------
-
-    convo = ""
-    for h in history[-5:]:
-        convo += f"User: {h.get('user')}\nAssistant: {h.get('assistant')}\n"
-
-    # ---------------- Prompt Construction ----------------
-
-    # If file uploaded but extraction failed
-    if not extracted_text.strip() and request.files:
+    # 🚨 If file uploaded but no text extracted
+    if request.files and not extracted_text.strip():
         return jsonify({
-            "response": "⚠️ I couldn't read your report clearly. Please upload a clearer PDF or type key values (like hemoglobin, glucose).",
+            "response": "⚠️ I couldn't read your report. Please upload a clearer file.",
             "is_emergency": False
         })
 
-    # If extraction worked
+    # ---------------- Prompt ----------------
+
     if extracted_text.strip():
-        prompt = f"""{SYSTEM_PROMPT}
+        prompt = f"""
+{SYSTEM_PROMPT}
 
 {REPORT_PROMPT}
 
+Medical Report:
 {extracted_text}
 
-User question: {message}
+User Question:
+{message}
 
-Assistant:
+Answer properly in structured format.
 """
     else:
-        prompt = f"""{SYSTEM_PROMPT}
+        convo = ""
+        for h in history[-5:]:
+            convo += f"User: {h.get('user')}\nAssistant: {h.get('assistant')}\n"
+
+        prompt = f"""
+{SYSTEM_PROMPT}
 
 {convo}
 

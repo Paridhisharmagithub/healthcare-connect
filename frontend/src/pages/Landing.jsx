@@ -231,7 +231,7 @@ const Landing = () => {
         </div>
       </footer>
 
-      <style jsx>{`
+      <style>{`
         @keyframes blob {
           0%, 100% {
             transform: translate(0px, 0px) scale(1);

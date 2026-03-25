@@ -45,6 +45,7 @@ const RegisterDoctor = () => {
       setLoading(false);
     }
   };
+  localStorage.setItem("role", "patient"); // ya doctor
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 relative overflow-hidden flex items-center justify-center p-4">

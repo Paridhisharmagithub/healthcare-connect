@@ -39,8 +39,7 @@ export const chatWithAI = async (message, history = [], files = []) => {
     files.forEach((file) => formData.append("files", file));
 
     const response = await axios.post(`${API_URL}/chat`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-      timeout: 90000, // allow Render cold start
+      timeout: 90000,
     });
 
     return response.data;

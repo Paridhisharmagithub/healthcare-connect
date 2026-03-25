@@ -19,19 +19,16 @@ import Assistant from "./pages/patient/Assistant";
 
 // Doctor pages
 import DoctorDashboard from "./pages/doctor/Dashboard";
-import Reports from "./pages/doctor/Reports";
+import Reports from "./pages/doctor/Patients";
 import DoctorAppointments from "./pages/doctor/Appointments";
 import DoctorConsultation from "./pages/doctor/Consultation";
 import Prescriptions from "./pages/doctor/Prescriptions";
-
-// Admin pages
-import AdminDashboard from "./pages/admin/Dashboard";
-import ApproveDoctors from "./pages/admin/ApproveDoctors";
-import ManageUsers from "./pages/admin/ManageUsers";
+import DoctorAssistant from "./pages/patient/Assistant";
 
 // Components & Context
 import Footer from "./components/Footer";
 import { AuthProvider } from "./contexts/AuthContext";
+import Patients from "./pages/doctor/Patients";
 
 function AppContent() {
   const location = useLocation();
@@ -59,18 +56,14 @@ function AppContent() {
 
         {/* Doctor routes */}
         <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-        <Route path="/doctor/reports" element={<Reports />} />
+        <Route path="/doctor/patients" element={<Patients />} />
         <Route path="/doctor/appointments" element={<DoctorAppointments />} />
         <Route path="/doctor/consultation" element={<DoctorConsultation />} />
         <Route path="/doctor/prescriptions" element={<Prescriptions />} />
+        <Route path="/doctor/assistant" element={<Assistant />} />
 
-        {/* Admin routes */}
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/approve-doctors" element={<ApproveDoctors />} />
-        <Route path="/admin/manage-users" element={<ManageUsers />} />
       </Routes>
 
-      {!shouldHideFooter && <Footer />}
     </>
   );
 }
