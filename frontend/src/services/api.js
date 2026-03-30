@@ -1,28 +1,71 @@
 import axios from "axios";
 
-const RAW = process.env.REACT_APP_API_URL || "http://localhost:4000";
-const API_URL = RAW.replace(/\/+$/, "").endsWith("/api")
-  ? RAW.replace(/\/+$/, "")
-  : RAW.replace(/\/+$/, "") + "/api";
+// ================= ENV DETECTION =================
+const isLocal =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
 
+// ================= BASE URL =================
+const API_URL = isLocal
+  ? "http://localhost:4000/api"
+  : (process.env.REACT_APP_API_URL || "").replace(/\/$/, "") + "/api";
+
+console.log("🌍 API URL:", API_URL);
+
+// ================= AXIOS INSTANCE =================
 const client = axios.create({
   baseURL: API_URL,
-  headers: { "Content-Type": "application/json" },
   timeout: 30000,
 });
 
-export const registerPatient = (data) => client.post("/register-patient", data);
-export const getAppointments = () => client.get("/appointments");
-export const bookAppointment = (data) => client.post("/book-appointment", data);
-export const searchMedicine = async (name, type = "", manufacturer = "", page = 1) => {
-  const res = await client.get("/search-medicine", { params: { name, type, manufacturer, page } });
-  return res.data;
+// ================= BASIC APIs =================
+
+// Register patient
+export const registerPatient = (data) =>
+  client.post("/register-patient", data);
+
+// Get appointments
+export const getAppointments = () =>
+  client.get("/appointments");
+
+// Book appointment
+export const bookAppointment = (data) =>
+  client.post("/book-appointment", data);
+
+// Approve doctor
+export const approveDoctor = (uid, status) =>
+  client.post("/approve-doctor", { uid, status });
+
+// ================= MEDICINE SEARCH =================
+export const searchMedicine = async (
+  name,
+  type = "",
+  manufacturer = "",
+  page = 1
+) => {
+  try {
+    const res = await client.get("/search-medicine", {
+      params: { name, type, manufacturer, page },
+    });
+
+    return res.data;
+
+  } catch (error) {
+    console.error("❌ Medicine API error:", error);
+
+    return {
+      results: [],
+      error: "Failed to fetch medicines",
+    };
+  }
 };
-export const approveDoctor = (uid, status) => client.post("/approve-doctor", { uid, status });
 
-
-// -------------------- Chat with optional file attachments --------------------
-export const chatWithAI = async (message, history = [], files = []) => {
+// ================= CHAT =================
+export const chatWithAI = async (
+  message,
+  history = [],
+  files = []
+) => {
   try {
     let uid = localStorage.getItem("uid");
 
@@ -36,16 +79,26 @@ export const chatWithAI = async (message, history = [], files = []) => {
     formData.append("message", message);
     formData.append("history", JSON.stringify(history));
 
-    files.forEach((file) => formData.append("files", file));
+    // Attach files (optional)
+    if (files && files.length > 0) {
+      files.forEach((file) => formData.append("files", file));
+    }
 
-    const response = await axios.post(`${API_URL}/chat`, formData, {
-      timeout: 90000,
-    });
+    const response = await axios.post(
+      `${API_URL}/chat`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        timeout: 90000, // for AI + OCR delay
+      }
+    );
 
     return response.data;
 
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("❌ Chat API error:", error);
 
     return {
       response: "Sorry — couldn't generate a reply. Please try again.",
@@ -54,21 +107,14 @@ export const chatWithAI = async (message, history = [], files = []) => {
   }
 };
 
-
-
-export const uploadReport = (formData) =>
-  axios.post(`${API_URL}/upload-report`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
+// ================= EXPORT =================
 const apiService = {
   registerPatient,
   getAppointments,
   bookAppointment,
-  searchMedicine,
   approveDoctor,
+  searchMedicine,
   chatWithAI,
-  uploadReport,
 };
 
 export default apiService;

@@ -1,9 +1,9 @@
 // src/pages/auth/Login.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { LogIn, Mail, Lock, ArrowLeft, Heart, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -16,32 +16,13 @@ const Login = () => {
 
   const navigate = useNavigate();
 
-  // 🔥 Auto redirect if already logged in
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Detect role
-        let role = "patient";
-
-        const doctorDoc = await getDoc(doc(db, "doctors", user.uid));
-        if (doctorDoc.exists()) {
-          role = "doctor";
-        }
-
-        localStorage.setItem("role", role);
-        navigate(`/${role}/dashboard`);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
+      // 🔹 Firebase login
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -50,18 +31,21 @@ const Login = () => {
 
       const user = userCredential.user;
 
-      // 🔥 Detect role
+      // 🔹 Detect role
       let role = "patient";
 
       const doctorDoc = await getDoc(doc(db, "doctors", user.uid));
+
       if (doctorDoc.exists()) {
         role = "doctor";
       }
 
+      // 🔹 Store role
       localStorage.setItem("role", role);
 
       console.log("Login successful:", email, role);
 
+      // 🔹 Redirect to correct dashboard
       navigate(`/${role}/dashboard`);
     } catch (err) {
       console.error(err);
@@ -77,24 +61,27 @@ const Login = () => {
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-200 rounded-full blur-xl opacity-30 animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-72 h-72 bg-teal-200 rounded-full blur-xl opacity-30 animate-pulse" style={{ animationDelay: "2s" }}></div>
+        <div
+          className="absolute bottom-20 right-10 w-72 h-72 bg-teal-200 rounded-full blur-xl opacity-30 animate-pulse"
+          style={{ animationDelay: "2s" }}
+        ></div>
       </div>
 
-      {/* Back */}
+      {/* Back Button */}
       <button
         onClick={() => navigate("/")}
-        className="absolute top-6 left-6 flex items-center gap-2 text-emerald-700 hover:text-emerald-800 font-medium"
+        className="absolute top-6 left-6 flex items-center gap-2 text-emerald-700 hover:text-emerald-800 transition font-medium"
       >
         <ArrowLeft className="w-5 h-5" />
         Back to Home
       </button>
 
-      {/* Card */}
+      {/* Login Card */}
       <div className="relative z-10 w-full max-w-md">
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
+          <div className="inline-flex items-center justify-center gap-2 mb-4">
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-3 rounded-2xl shadow-lg">
               <Heart className="w-10 h-10 text-white" fill="white" />
             </div>
@@ -120,17 +107,19 @@ const Login = () => {
 
             {/* Email */}
             <div>
-              <label className="block mb-2 font-medium text-gray-700">
-                Email
+              <label className="block text-gray-700 font-medium mb-2">
+                Email Address
               </label>
+
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+
                 <input
                   type="email"
-                  className="w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none focus:border-emerald-400"
-                  placeholder="your@email.com"
+                  placeholder="your.email@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition-all"
                   required
                 />
               </div>
@@ -138,36 +127,50 @@ const Login = () => {
 
             {/* Password */}
             <div>
-              <label className="block mb-2 font-medium text-gray-700">
+              <label className="block text-gray-700 font-medium mb-2">
                 Password
               </label>
+
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+
                 <input
                   type={showPassword ? "text" : "password"}
-                  className="w-full pl-12 pr-12 py-3 border-2 rounded-xl focus:outline-none focus:border-emerald-400"
-                  placeholder="Enter password"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition-all"
                   required
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* Button */}
+            {/* Login Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-500 text-white py-3 rounded-xl font-semibold hover:bg-emerald-600 transition"
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-4 rounded-xl font-semibold hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {loading ? "Logging in..." : "Login"}
+              {loading ? (
+                "Logging in..."
+              ) : (
+                <>
+                  <LogIn className="w-5 h-5" />
+                  Login
+                </>
+              )}
             </button>
           </form>
 
@@ -175,16 +178,16 @@ const Login = () => {
           <div className="grid grid-cols-2 gap-4 mt-6">
             <button
               onClick={() => navigate("/register-patient")}
-              className="border border-emerald-300 py-2 rounded-xl text-emerald-600"
+              className="px-4 py-3 border-2 border-emerald-200 text-emerald-700 rounded-xl font-medium hover:bg-emerald-50 transition text-center"
             >
-              Patient
+              Register as Patient
             </button>
 
             <button
               onClick={() => navigate("/register-doctor")}
-              className="border border-teal-300 py-2 rounded-xl text-teal-600"
+              className="px-4 py-3 border-2 border-teal-200 text-teal-700 rounded-xl font-medium hover:bg-teal-50 transition text-center"
             >
-              Doctor
+              Register as Doctor
             </button>
           </div>
         </div>
@@ -194,3 +197,17 @@ const Login = () => {
 };
 
 export default Login;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -2,6 +2,8 @@ import { useState } from "react";
 import Navbar from "../../components/Navbar";
 import { Pill, Search, Loader, ShoppingCart, X } from "lucide-react";
 import axios from "axios";
+import { searchMedicine } from "../../services/api";
+
 
 /**
  * Medicines.jsx
@@ -64,22 +66,19 @@ export default function Medicines() {
     // After this you can redirect to a checkout page or payment gateway
   };
 
+
   const handleSearch = async () => {
     if (!query.trim()) return alert("Please enter a medicine name");
 
     setLoading(true);
     setSearched(true);
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/search-medicine`,
-        {
-          params: { name: query, page: 1 },
-        }
-      );
 
-      setResults(res.data.results || []);
+    try {
+      const res = await searchMedicine(query, "", "", 1);
+
+      setResults(res.results || []);
     } catch (error) {
-      alert("Search failed: " + (error.message || error));
+      alert("Search failed");
       setResults([]);
     } finally {
       setLoading(false);

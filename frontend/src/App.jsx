@@ -10,7 +10,6 @@ import RegisterDoctor from "./pages/RegisterDoctor";
 
 // Patient pages
 import PatientDashboard from "./pages/patient/Dashboard";
-import UploadReport from "./pages/patient/UploadReport";
 import Hospitals from "./pages/patient/Hospitals";
 import Medicines from "./pages/patient/Medicines";
 import PatientAppointments from "./pages/patient/Appointments";
@@ -47,7 +46,6 @@ function AppContent() {
 
         {/* Patient routes */}
         <Route path="/patient/dashboard" element={<PatientDashboard />} />
-        <Route path="/patient/upload-report" element={<UploadReport />} />
         <Route path="/patient/hospitals" element={<Hospitals />} />
         <Route path="/patient/medicines" element={<Medicines />} />
         <Route path="/patient/appointments" element={<PatientAppointments />} />

@@ -11,7 +11,7 @@ import pytesseract
 from docx import Document
 from pymongo import MongoClient
 
-# PDF support
+# ---------------- PDF SUPPORT ----------------
 try:
     import fitz  # PyMuPDF
     PDF_SUPPORTED = True
@@ -19,8 +19,7 @@ except ImportError:
     fitz = None
     PDF_SUPPORTED = False
 
-# ---------------- Setup ----------------
-
+# ---------------- SETUP ----------------
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ai-service")
@@ -28,26 +27,22 @@ logger = logging.getLogger("ai-service")
 app = Flask(__name__)
 CORS(app)
 
-# ---------------- MongoDB ----------------
-
+# ---------------- MONGODB ----------------
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client[os.getenv("DB_NAME")]
 collection = db[os.getenv("COLLECTION_NAME")]
 
-# ---------------- Tesseract ----------------
-
+# ---------------- TESSERACT ----------------
 if os.getenv("TESSERACT_PATH"):
     pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_PATH")
 
-# ---------------- Gemini ----------------
-
+# ---------------- GEMINI ----------------
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel(
     os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
 )
 
-# ---------------- Prompts ----------------
-
+# ---------------- PROMPTS ----------------
 SYSTEM_PROMPT = """
 You are a helpful AI health assistant.
 
@@ -56,7 +51,7 @@ STRICT FORMAT:
 - Use headings (##, ###)
 - Use bullet points
 - Keep answers structured
-- DO NOT say you cannot read reports
+- Be clear and helpful
 """
 
 REPORT_PROMPT = """
@@ -69,8 +64,7 @@ Analyze the medical report and explain:
 5. Final advice
 """
 
-# ---------------- OCR ----------------
-
+# ---------------- OCR FUNCTIONS ----------------
 def extract_image(path):
     try:
         return pytesseract.image_to_string(Image.open(path))
@@ -80,7 +74,6 @@ def extract_image(path):
 
 def extract_pdf(path):
     text = ""
-
     if not PDF_SUPPORTED:
         return ""
 
@@ -115,117 +108,117 @@ def extract_docx(path):
         logger.error(f"DOCX error: {e}")
         return ""
 
-# ---------------- Routes ----------------
-
+# ---------------- HEALTH ----------------
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
 
-# ---------------- Medicine Search ----------------
-
+# ---------------- MEDICINE SEARCH ----------------
 @app.get("/api/search-medicine")
 def search_medicine():
+    try:
+        name = (request.args.get("name") or "").strip().lower()
+        page = int(request.args.get("page", 1))
 
-    name = (request.args.get("name") or "").strip().lower()
-    page = int(request.args.get("page", 1))
+        per_page = 20
+        skip = (page - 1) * per_page
 
-    per_page = 20
-    skip = (page - 1) * per_page
+        query = {}
+        if name:
+            query["name"] = {"$regex": name, "$options": "i"}
 
-    query = {}
-    if name:
-        query["name"] = {"$regex": name, "$options": "i"}
+        total = collection.count_documents(query)
 
-    total = collection.count_documents(query)
+        medicines = list(
+            collection.find(query).skip(skip).limit(per_page)
+        )
 
-    medicines = list(
-        collection.find(query).skip(skip).limit(per_page)
-    )
+        results = []
 
-    results = []
+        for m in medicines:
+            results.append({
+                "id": str(m.get("_id", "")),
+                "name": m.get("name", ""),
+                "price": m.get("price") or m.get("price(₹)", ""),
+                "manufacturer": m.get("manufacturer_name", ""),
+                "type": m.get("type", ""),
+                "pack_size": m.get("pack_size_label", ""),
+                "composition": f"{m.get('short_composition1','')} {m.get('short_composition2','')}".strip()
+            })
 
-    for m in medicines:
-        results.append({
-            "id": str(m.get("_id")),
-            "name": m.get("name"),
-            "price": m.get("price"),
-            "manufacturer": m.get("manufacturer_name"),
-            "type": m.get("type"),
-            "pack_size": m.get("pack_size_label"),
-            "composition": f"{m.get('composition_1','')} {m.get('composition_2','')}".strip()
+        return jsonify({
+            "results": results,
+            "total_results": total,
+            "page": page,
+            "per_page": per_page
         })
 
-    return jsonify({
-        "results": results,
-        "total_results": total,
-        "page": page,
-        "per_page": per_page
-    })
+    except Exception as e:
+        logger.error(f"🔥 Medicine search error: {e}")
+        return jsonify({"error": str(e)}), 500
 
-# ---------------- AI Chat ----------------
-
+# ---------------- AI CHAT ----------------
 @app.post("/ai/chat")
 def ai_chat():
+    try:
+        # Detect multipart or JSON
+        if request.content_type and "multipart" in request.content_type:
+            data = request.form
+        else:
+            data = request.get_json(silent=True) or {}
 
-    if request.content_type and "multipart" in request.content_type:
-        data = request.form
-    else:
-        data = request.get_json(silent=True) or {}
+        message = (data.get("message") or "").strip()
 
-    message = (data.get("message") or "").strip()
-
-    # history parsing
-    history_field = data.get("history", "[]")
-    if isinstance(history_field, str):
-        try:
-            history = json.loads(history_field)
-        except:
-            history = []
-    else:
-        history = history_field or []
-
-    if not message and not request.files:
-        return jsonify({"error": "Message required"}), 400
-
-    # ---------------- Extract Files ----------------
-
-    extracted_text = ""
-
-    for f in request.files.getlist("files"):
-        ext = os.path.splitext(f.filename)[1].lower()
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            f.save(tmp.name)
-
-        try:
-            if ext in [".jpg", ".png", ".jpeg"]:
-                extracted_text += extract_image(tmp.name)
-
-            elif ext == ".pdf":
-                extracted_text += extract_pdf(tmp.name)
-
-            elif ext == ".docx":
-                extracted_text += extract_docx(tmp.name)
-
-        finally:
+        # Parse history
+        history_field = data.get("history", "[]")
+        if isinstance(history_field, str):
             try:
-                os.unlink(tmp.name)
+                history = json.loads(history_field)
             except:
-                pass
+                history = []
+        else:
+            history = history_field or []
 
-    logger.info(f"📄 Extracted text preview:\n{extracted_text[:500]}")
+        if not message and not request.files:
+            return jsonify({"error": "Message required"}), 400
 
-    # 🚨 If file uploaded but no text extracted
-    if request.files and not extracted_text.strip():
-        return jsonify({
-            "response": "⚠️ I couldn't read your report. Please upload a clearer file.",
-            "is_emergency": False
-        })
+        # ---------------- FILE EXTRACTION ----------------
+        extracted_text = ""
 
-    # ---------------- Prompt ----------------
+        for f in request.files.getlist("files"):
+            ext = os.path.splitext(f.filename)[1].lower()
 
-    if extracted_text.strip():
-        prompt = f"""
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                f.save(tmp.name)
+
+            try:
+                if ext in [".jpg", ".png", ".jpeg"]:
+                    extracted_text += extract_image(tmp.name)
+
+                elif ext == ".pdf":
+                    extracted_text += extract_pdf(tmp.name)
+
+                elif ext == ".docx":
+                    extracted_text += extract_docx(tmp.name)
+
+            finally:
+                try:
+                    os.unlink(tmp.name)
+                except:
+                    pass
+
+        logger.info(f"📄 Extracted preview:\n{extracted_text[:300]}")
+
+        # If file uploaded but nothing extracted
+        if request.files and not extracted_text.strip():
+            return jsonify({
+                "response": "⚠️ Couldn't read the report clearly. Try a better image/PDF.",
+                "is_emergency": False
+            })
+
+        # ---------------- PROMPT ----------------
+        if extracted_text.strip():
+            prompt = f"""
 {SYSTEM_PROMPT}
 
 {REPORT_PROMPT}
@@ -236,14 +229,14 @@ Medical Report:
 User Question:
 {message}
 
-Answer properly in structured format.
+Answer in structured format.
 """
-    else:
-        convo = ""
-        for h in history[-5:]:
-            convo += f"User: {h.get('user')}\nAssistant: {h.get('assistant')}\n"
+        else:
+            convo = ""
+            for h in history[-5:]:
+                convo += f"User: {h.get('user')}\nAssistant: {h.get('assistant')}\n"
 
-        prompt = f"""
+            prompt = f"""
 {SYSTEM_PROMPT}
 
 {convo}
@@ -253,24 +246,22 @@ User: {message}
 Assistant:
 """
 
-    # ---------------- Gemini ----------------
-
-    try:
+        # ---------------- GEMINI ----------------
         result = model.generate_content(prompt)
         text = result.text if hasattr(result, "text") else str(result)
-    except Exception as e:
-        logger.error(f"Gemini error: {e}")
+
         return jsonify({
-            "response": "AI service temporarily unavailable.",
+            "response": text.strip(),
             "is_emergency": False
         })
 
-    return jsonify({
-        "response": text.strip(),
-        "is_emergency": False
-    })
+    except Exception as e:
+        logger.error(f"🔥 AI error: {e}")
+        return jsonify({
+            "response": "AI service temporarily unavailable.",
+            "is_emergency": False
+        }), 500
 
-# ---------------- Run ----------------
-
+# ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))

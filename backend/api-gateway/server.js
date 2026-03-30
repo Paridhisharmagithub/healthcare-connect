@@ -4,51 +4,55 @@ import dotenv from "dotenv";
 import multer from "multer";
 import axios from "axios";
 import admin from "firebase-admin";
+import FormData from "form-data";
 
 dotenv.config();
 
 const app = express();
 const upload = multer();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// 🔥 Global Flask URL (works local + deployed)
-const FLASK_URL = process.env.FLASK_AI_URL || "http://localhost:5000";
-console.log("Using Flask URL:", FLASK_URL);
+// 🌍 ENV BASED FLASK URL (FINAL)
+const FLASK_URL =
+  process.env.FLASK_AI_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://healthcare-connect-97o7.onrender.com"
+    : "http://localhost:5000");
 
-// ================= Firebase Setup =================
-let serviceAccount;
+console.log("🌍 ENV:", process.env.NODE_ENV);
+console.log("🔗 Using Flask URL:", FLASK_URL);
+
+// ================= Firebase =================
+let db = null;
 
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
-    // fix newline issue
-    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+    serviceAccount.private_key =
+      serviceAccount.private_key.replace(/\\n/g, "\n");
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
 
+    db = admin.firestore();
     console.log("✅ Firebase initialized");
   } else {
-    console.log("⚠️ Firebase not configured (running without DB)");
+    console.log("⚠️ Firebase not configured");
   }
 } catch (err) {
   console.error("❌ Firebase init failed:", err.message);
 }
-
-const db = admin.apps.length ? admin.firestore() : null;
 
 // ================= Health =================
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// ================= Chat API =================
-
+// ================= CHAT =================
 app.post("/api/chat", upload.array("files"), async (req, res) => {
   try {
     const { uid, message, history } = req.body;
@@ -57,74 +61,83 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
       return res.status(400).json({ error: "UID required" });
     }
 
-    console.log("👉 Incoming files:", req.files?.length || 0);
-    console.log("👉 Using Flask URL:", FLASK_URL);
+    console.log("👉 Files:", req.files?.length || 0);
+    console.log("👉 Message:", message);
 
     const formData = new FormData();
-
     formData.append("uid", uid);
     formData.append("message", message || "");
     formData.append("history", history || "[]");
 
-    // ✅ attach files
     if (req.files && req.files.length > 0) {
       req.files.forEach((file) => {
-        formData.append("files", file.buffer, file.originalname);
+        formData.append("files", file.buffer, {
+          filename: file.originalname,
+          contentType: file.mimetype,
+        });
       });
     }
 
-    // ✅ send correct data
+    console.log("👉 Calling Flask:", `${FLASK_URL}/ai/chat`);
+
     const aiRes = await axios.post(
       `${FLASK_URL}/ai/chat`,
       formData,
       {
-        headers: {
-          ...formData.getHeaders(),
-        },
+        headers: formData.getHeaders(),
         timeout: 90000,
       }
     );
 
+    // Save chat (optional)
+    if (db) {
+      const ref = db.collection("chat_history").doc(uid);
+      const snap = await ref.get();
+
+      const convs = snap.exists ? snap.data().conversations || [] : [];
+
+      convs.push({
+        id: String(convs.length + 1),
+        title: message?.slice(0, 30) || "Chat",
+        messages: [
+          { type: "user", content: message },
+          { type: "ai", content: aiRes.data.response },
+        ],
+      });
+
+      await ref.set({ conversations: convs }, { merge: true });
+    }
+
     res.json(aiRes.data);
 
   } catch (err) {
-    console.error("❌ AI chat error:", err.message);
+    console.error("❌ Chat API error:", err.message);
 
     if (err.response) {
-      console.error("🔥 Flask response:", err.response.data);
+      console.error("🔥 Flask status:", err.response.status);
+      console.error("🔥 Flask data:", err.response.data);
     }
 
     res.status(500).json({
       error: "AI service failed",
-      details: err.message,
+      details: err.response?.data || err.message,
     });
   }
 });
 
-// ================= Chat History =================
-app.get("/api/chat-history/:uid", async (req, res) => {
-  try {
-    if (!db) return res.json([]);
-
-    const doc = await db.collection("chat_history").doc(req.params.uid).get();
-    res.json(doc.exists ? doc.data().conversations : []);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch chat history" });
-  }
-});
-
-// ================= Medicine Search =================
+// ================= MEDICINE =================
 app.get("/api/search-medicine", async (req, res) => {
   try {
     console.log("👉 Query:", req.query);
+    console.log("👉 Calling Flask:", `${FLASK_URL}/api/search-medicine`);
 
-    const response = await axios.get(`${FLASK_URL}/api/search-medicine`, {
-      params: req.query,
-      timeout: 60000,
-    });
-
-    console.log("✅ Flask responded");
+    const response = await axios.get(
+      `${FLASK_URL}/api/search-medicine`,
+      {
+        params: req.query,
+        timeout: 60000,
+      }
+    );
 
     res.json(response.data);
 
@@ -132,16 +145,18 @@ app.get("/api/search-medicine", async (req, res) => {
     console.error("❌ Medicine API error:", err.message);
 
     if (err.response) {
-      console.error("🔥 Flask error:", err.response.data);
+      console.error("🔥 Flask status:", err.response.status);
+      console.error("🔥 Flask data:", err.response.data);
     }
 
     res.status(500).json({
       error: "Medicine search failed",
-      details: err.message,
+      details: err.response?.data || err.message,
     });
   }
 });
-// ================= Start Server =================
+
+// ================= START =================
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, "0.0.0.0", () => {
