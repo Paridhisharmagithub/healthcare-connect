@@ -104,7 +104,7 @@ export const chatWithAI = async (
 };
 
 // ================= EXPORT =================
-export default {
+const apiService = {
   registerPatient,
   getAppointments,
   bookAppointment,
@@ -112,3 +112,5 @@ export default {
   searchMedicine,
   chatWithAI,
 };
+
+export default apiService;
