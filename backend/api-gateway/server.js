@@ -9,17 +9,14 @@ import FormData from "form-data";
 dotenv.config();
 
 const app = express();
-const upload = multer();
+const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } });
 
 app.use(cors());
 app.use(express.json());
 
 // 🌍 ENV BASED FLASK URL (FINAL)
 const FLASK_URL =
-  process.env.FLASK_AI_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://healthcare-connect-97o7.onrender.com"
-    : "http://localhost:5000");
+  process.env.FLASK_AI_URL || "http://localhost:5000";
 
 console.log("🌍 ENV:", process.env.NODE_ENV);
 console.log("🔗 Using Flask URL:", FLASK_URL);
@@ -78,40 +75,25 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
       });
     }
 
-    console.log("👉 Calling Flask:", `${FLASK_URL}/ai/chat`);
-
     const aiRes = await axios.post(
       `${FLASK_URL}/ai/chat`,
       formData,
       {
-        headers: formData.getHeaders(),
+        headers: {
+          ...formData.getHeaders(),
+          Accept: "application/json",
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
         timeout: 90000,
       }
     );
-
-    // Save chat (optional)
-    if (db) {
-      const ref = db.collection("chat_history").doc(uid);
-      const snap = await ref.get();
-
-      const convs = snap.exists ? snap.data().conversations || [] : [];
-
-      convs.push({
-        id: String(convs.length + 1),
-        title: message?.slice(0, 30) || "Chat",
-        messages: [
-          { type: "user", content: message },
-          { type: "ai", content: aiRes.data.response },
-        ],
-      });
-
-      await ref.set({ conversations: convs }, { merge: true });
-    }
 
     res.json(aiRes.data);
 
   } catch (err) {
     console.error("❌ Chat API error:", err.message);
+    console.error("🔥 FULL ERROR:", err);
 
     if (err.response) {
       console.error("🔥 Flask status:", err.response.status);

@@ -1,5 +1,4 @@
 // src/App.jsx
-import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 
 // Public pages
@@ -18,14 +17,11 @@ import Assistant from "./pages/patient/Assistant";
 
 // Doctor pages
 import DoctorDashboard from "./pages/doctor/Dashboard";
-import Reports from "./pages/doctor/Patients";
 import DoctorAppointments from "./pages/doctor/Appointments";
 import DoctorConsultation from "./pages/doctor/Consultation";
 import Prescriptions from "./pages/doctor/Prescriptions";
-import DoctorAssistant from "./pages/patient/Assistant";
 
 // Components & Context
-import Footer from "./components/Footer";
 import { AuthProvider } from "./contexts/AuthContext";
 import Patients from "./pages/doctor/Patients";
 

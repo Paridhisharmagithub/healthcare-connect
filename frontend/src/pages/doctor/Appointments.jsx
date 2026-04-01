@@ -6,13 +6,11 @@ import {
   Clock,
   User,
   CheckCircle,
-  XCircle,
-  Loader,
+  XCircle
 } from "lucide-react";
 
 export default function DoctorAppointments() {
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   const fetchAppointments = async () => {
     try {

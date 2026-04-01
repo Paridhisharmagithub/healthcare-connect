@@ -7,10 +7,8 @@ import {
   Video,
   Brain,
   Clock,
-  Stethoscope,
   AlertTriangle,
 } from "lucide-react";
-import React from "react";
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();

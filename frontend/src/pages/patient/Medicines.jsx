@@ -1,7 +1,6 @@
 import { useState } from "react";
 import Navbar from "../../components/Navbar";
 import { Pill, Search, Loader, ShoppingCart, X } from "lucide-react";
-import axios from "axios";
 import { searchMedicine } from "../../services/api";
 
 
