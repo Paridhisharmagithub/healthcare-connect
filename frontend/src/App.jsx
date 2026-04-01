@@ -26,10 +26,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Patients from "./pages/doctor/Patients";
 
 function AppContent() {
-  const location = useLocation();
-  const hideFooterRoutes = ["/patient/assistant", "/", "/register-patient", "/register-doctor", "/login"]; // Add more if needed
 
-  const shouldHideFooter = hideFooterRoutes.includes(location.pathname);
 
   return (
     <>
