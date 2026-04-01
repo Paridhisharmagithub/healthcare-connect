@@ -9,12 +9,15 @@ import {
   X,
 } from "lucide-react";
 
-
 export default function Assistant() {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showSidebar, setShowSidebar] = useState(true);
+
+  // ✅ FIXED STATES
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -24,24 +27,25 @@ export default function Assistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ FILE SELECT
+  // ---------------- FILE SELECT ----------------
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     console.log("📂 Selected:", files);
 
     setSelectedFiles(files);
-    filesRef.current = files; // 🔥 IMPORTANT
+    filesRef.current = files;
   };
 
   const removeFile = (index) => {
     const updated = [...selectedFiles];
     updated.splice(index, 1);
     setSelectedFiles(updated);
+    filesRef.current = updated;
   };
 
-  // ✅ SEND
+  // ---------------- SEND ----------------
   const handleSend = async () => {
-    const filesToSend = filesRef.current; // 🔥 USE REF
+    const filesToSend = filesRef.current;
 
     console.log("🚀 Sending files:", filesToSend);
 
@@ -50,11 +54,14 @@ export default function Assistant() {
 
     const userMessage = prompt.trim() || "[Uploaded medical report]";
 
+    setLoading(true);
+    setError(null);
+
     try {
       const response = await chatWithAI(
         userMessage,
         [],
-        filesToSend // ✅ NOT selectedFiles
+        filesToSend
       );
 
       setMessages((prev) => [
@@ -65,11 +72,13 @@ export default function Assistant() {
 
     } catch (err) {
       console.error(err);
+      setError("Failed to get response");
+    } finally {
+      setLoading(false);
+      setSelectedFiles([]);
+      filesRef.current = [];
+      setPrompt("");
     }
-
-    // reset
-    setSelectedFiles([]);
-    filesRef.current = []; // 🔥 clear ref
   };
 
   const handleKeyDown = (e) => {
@@ -84,6 +93,7 @@ export default function Assistant() {
       <Navbar userType="patient" userName="John Doe" />
 
       <div className="flex flex-1 overflow-hidden relative">
+
         {/* Sidebar Toggle */}
         <button
           className="absolute top-20 left-4 z-50 p-2 bg-white shadow rounded-full"
@@ -96,9 +106,10 @@ export default function Assistant() {
           )}
         </button>
 
-        {/* Chat */}
+        {/* Chat Area */}
         <div className="flex-1 flex flex-col">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <Bot className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
@@ -125,6 +136,11 @@ export default function Assistant() {
                 </div>
               ))
             )}
+
+            {loading && (
+              <p className="text-sm text-gray-500">Thinking...</p>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -149,6 +165,7 @@ export default function Assistant() {
           {/* INPUT */}
           <div className="border-t p-3 bg-gray-50">
             <div className="flex gap-2">
+
               <button
                 onClick={() => fileInputRef.current.click()}
                 className="p-2 bg-white border rounded-lg"
