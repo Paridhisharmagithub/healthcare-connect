@@ -5,34 +5,31 @@ const isLocal =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1";
 
-// ================= BASE URL =================
+// ================= BASE URL (SAFE FALLBACK) =================
 const API_URL = isLocal
   ? "http://localhost:4000/api"
-  : (process.env.REACT_APP_API_URL || "").replace(/\/$/, "") + "/api";
+  : process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, "") + "/api"
+  : "https://healthcare-connect-1-eg8e.onrender.com/api"; // 🔥 fallback
 
 console.log("🌍 API URL:", API_URL);
 
 // ================= AXIOS INSTANCE =================
 const client = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 90000, // 🔥 increased for Render cold start
 });
 
 // ================= BASIC APIs =================
-
-// Register patient
 export const registerPatient = (data) =>
   client.post("/register-patient", data);
 
-// Get appointments
 export const getAppointments = () =>
   client.get("/appointments");
 
-// Book appointment
 export const bookAppointment = (data) =>
   client.post("/book-appointment", data);
 
-// Approve doctor
 export const approveDoctor = (uid, status) =>
   client.post("/approve-doctor", { uid, status });
 
@@ -55,7 +52,7 @@ export const searchMedicine = async (
 
     return {
       results: [],
-      error: "Failed to fetch medicines",
+      error: "Medicine service temporarily unavailable",
     };
   }
 };
@@ -79,7 +76,6 @@ export const chatWithAI = async (
     formData.append("message", message);
     formData.append("history", JSON.stringify(history));
 
-    // Attach files (optional)
     if (files && files.length > 0) {
       files.forEach((file) => formData.append("files", file));
     }
@@ -91,7 +87,7 @@ export const chatWithAI = async (
         headers: {
           "Content-Type": "multipart/form-data",
         },
-        timeout: 90000, // for AI + OCR delay
+        timeout: 120000, // 🔥 AI + OCR safe
       }
     );
 
@@ -101,14 +97,14 @@ export const chatWithAI = async (
     console.error("❌ Chat API error:", error);
 
     return {
-      response: "Sorry — couldn't generate a reply. Please try again.",
+      response: "Server busy. Try again in a few seconds.",
       is_emergency: false,
     };
   }
 };
 
 // ================= EXPORT =================
-const apiService = {
+export default {
   registerPatient,
   getAppointments,
   bookAppointment,
@@ -116,5 +112,3 @@ const apiService = {
   searchMedicine,
   chatWithAI,
 };
-
-export default apiService;

@@ -45,14 +45,14 @@ export default function Medicines() {
   };
 
   const addToCart = (med, qty) => {
-    const priceRaw = med["price(\u20b9)"] || med.price || "0";
+    const priceRaw = med.price || "0";
     const price = Number(String(priceRaw).replace(/[^0-9.]/g, "")) || 0;
     setCart((prev) => {
       const existing = prev.find((p) => p.id === med.id);
       if (existing) {
         return prev.map((p) => (p.id === med.id ? { ...p, qty: p.qty + qty } : p));
       }
-      return [...prev, { id: med.id, name: med.name, price, qty, manufacturer: med.manufacturer_name }];
+      return [...prev, { id: med.id, name: med.name, price, qty, manufacturer: med.manufacturer || "" }];
     });
     closeModal();
     // optional: show toast/snackbar here
