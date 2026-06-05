@@ -2,7 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Firebase config from .env
 const firebaseConfig = {
@@ -19,4 +19,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const analytics = getAnalytics(app);
+
+let analytics = null;
+isSupported().then((supported) => {
+  if (supported) {
+    analytics = getAnalytics(app);
+  }
+});
+export { analytics };

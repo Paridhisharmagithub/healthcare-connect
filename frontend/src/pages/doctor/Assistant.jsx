@@ -15,6 +15,8 @@ export default function Assistant() {
   const [messages, setMessages] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -50,26 +52,27 @@ export default function Assistant() {
 
     const userMessage = prompt.trim() || "[Uploaded medical report]";
 
+    setLoading(true);
+    setError(null);
+
     try {
-      const response = await chatWithAI(
-        userMessage,
-        [],
-        filesToSend // ✅ NOT selectedFiles
-      );
+      const response = await chatWithAI(userMessage, [], filesToSend);
 
       setMessages((prev) => [
         ...prev,
         { type: "user", content: userMessage },
         { type: "ai", content: response.response },
       ]);
-
+      setPrompt("");
     } catch (err) {
       console.error(err);
+      setError("Could not reach the AI service.");
+    } finally {
+      setLoading(false);
     }
 
-    // reset
     setSelectedFiles([]);
-    filesRef.current = []; // 🔥 clear ref
+    filesRef.current = [];
   };
 
   const handleKeyDown = (e) => {
@@ -81,7 +84,7 @@ export default function Assistant() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar userType="patient" userName="John Doe" />
+      <Navbar userType="doctor" />
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar Toggle */}

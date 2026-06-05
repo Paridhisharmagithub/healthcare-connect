@@ -318,7 +318,7 @@ export default function Hospitals() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar userType="patient" userName="John Doe" />
+      <Navbar userType="patient" />
 
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}

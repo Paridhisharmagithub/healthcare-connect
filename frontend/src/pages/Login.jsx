@@ -40,10 +40,8 @@ const Login = () => {
         role = "doctor";
       }
 
-      // 🔹 Store role
       localStorage.setItem("role", role);
-
-      console.log("Login successful:", email, role);
+      localStorage.setItem("uid", user.uid);
 
       // 🔹 Redirect to correct dashboard
       navigate(`/${role}/dashboard`);

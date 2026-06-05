@@ -16,7 +16,7 @@ const Patients = () => {
 
   return (
     <div className="min-h-screen p-8 bg-[#EFFDFB] text-[#0D9688]">
-      <Navbar userType="doctor" userName="Dr. Smith" />
+      <Navbar userType="doctor" />
 
       <h1 className="text-4xl font-bold mb-6 text-center">
         Patients

@@ -1,0 +1,15 @@
+# Ignore Git metadata
+.git/
+.gitignore
+
+# CRITICAL: Ignore the local node_modules folder. 
+# Cloud Build will install dependencies freshly in the cloud.
+# Uploading thousands of local node files will cause the deployment to fail.
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore local secrets configuration parameters
+.env
+.env.example

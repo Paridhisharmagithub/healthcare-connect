@@ -90,7 +90,7 @@ export default function Assistant() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar userType="patient" userName="John Doe" />
+      <Navbar userType="patient" />
 
       <div className="flex flex-1 overflow-hidden relative">
 

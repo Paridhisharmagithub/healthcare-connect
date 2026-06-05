@@ -1,21 +1,25 @@
 import { useState, useEffect } from "react";
-import { getAppointments } from "../../services/api";
+import {
+  listDoctorAppointments,
+  updateAppointmentStatus,
+} from "../../services/appointments";
 import Navbar from "../../components/Navbar";
 import {
   Calendar,
   Clock,
   User,
   CheckCircle,
-  XCircle
+  XCircle,
 } from "lucide-react";
 
 export default function DoctorAppointments() {
   const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchAppointments = async () => {
     try {
-      const res = await getAppointments();
-      setAppointments(res.data);
+      const list = await listDoctorAppointments();
+      setAppointments(list);
     } catch (error) {
       console.error("Failed to fetch appointments:", error);
     }
@@ -25,30 +29,33 @@ export default function DoctorAppointments() {
     fetchAppointments();
   }, []);
 
-  // 🔥 Dummy status update (replace with API later)
-  const updateStatus = (index, status) => {
-    const updated = [...appointments];
-    updated[index].status = status;
-    setAppointments(updated);
+  const updateStatus = async (appointmentId, status) => {
+    setLoading(true);
+    try {
+      await updateAppointmentStatus(appointmentId, status);
+      await fetchAppointments();
+    } catch (error) {
+      alert("Could not update appointment: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar userType="doctor" userName="Dr. John" />
+      <Navbar userType="doctor" />
 
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-2">
             <Calendar className="w-8 h-8 text-emerald-600" />
             Patient Appointments
           </h1>
           <p className="text-gray-600">
-            View and manage appointment requests
+            Requests where the patient entered your registered name
           </p>
         </div>
 
-        {/* List */}
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 mb-6">
             Appointment Requests
@@ -58,15 +65,17 @@ export default function DoctorAppointments() {
             <div className="text-center py-12">
               <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">No appointments yet</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Patients must book using your exact registered name.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {appointments.map((appointment, index) => (
+              {appointments.map((appointment) => (
                 <div
-                  key={index}
+                  key={appointment.id}
                   className="flex flex-col md:flex-row md:items-center md:justify-between p-6 bg-emerald-50 rounded-xl border border-emerald-100 hover:shadow-md transition"
                 >
-                  {/* Left */}
                   <div className="flex items-center gap-4">
                     <div className="bg-emerald-500 rounded-full p-3">
                       <User className="w-6 h-6 text-white" />
@@ -74,7 +83,7 @@ export default function DoctorAppointments() {
 
                     <div>
                       <h3 className="font-semibold text-gray-800">
-                        {appointment.patient || "Patient Name"}
+                        {appointment.patientName || "Patient"}
                       </h3>
 
                       <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
@@ -84,7 +93,6 @@ export default function DoctorAppointments() {
                     </div>
                   </div>
 
-                  {/* Right */}
                   <div className="flex items-center gap-3 mt-4 md:mt-0">
                     {appointment.status === "approved" ? (
                       <span className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold">
@@ -97,16 +105,18 @@ export default function DoctorAppointments() {
                     ) : (
                       <>
                         <button
-                          onClick={() => updateStatus(index, "approved")}
-                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600"
+                          disabled={loading}
+                          onClick={() => updateStatus(appointment.id, "approved")}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50"
                         >
                           <CheckCircle className="w-4 h-4" />
                           Approve
                         </button>
 
                         <button
-                          onClick={() => updateStatus(index, "rejected")}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600"
+                          disabled={loading}
+                          onClick={() => updateStatus(appointment.id, "rejected")}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 disabled:opacity-50"
                         >
                           <XCircle className="w-4 h-4" />
                           Reject

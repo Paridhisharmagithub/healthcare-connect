@@ -30,7 +30,8 @@ const RegisterPatient = () => {
         createdAt: new Date()
       });
 
-      console.log("Patient registered:", name, email);
+      localStorage.setItem("role", "patient");
+      localStorage.setItem("uid", user.uid);
       navigate("/patient/dashboard");
     } catch (error) {
       if (error.code === "auth/email-already-in-use") {
@@ -44,7 +45,6 @@ const RegisterPatient = () => {
       setLoading(false);
     }
   };
-  localStorage.setItem("role", "patient"); // ya doctor
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 relative overflow-hidden flex items-center justify-center p-4">

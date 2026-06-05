@@ -51,7 +51,7 @@ const Consultation = () => {
 
   return (
     <div className="min-h-screen p-8" style={{ backgroundColor: "#EFFDFB", color: "#0D9688" }}>
-      <Navbar userType="patient" userName="John Doe" />
+      <Navbar userType="patient" />
       <h1 className="text-4xl font-bold mb-6 text-center">Patient Consultation 💬</h1>
       <p className="text-lg text-center mb-8">Connect with your doctor instantly. Temporary video call.</p>
 

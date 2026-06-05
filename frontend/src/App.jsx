@@ -1,13 +1,10 @@
-// src/App.jsx
-import { BrowserRouter as Router, Routes, Route} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// Public pages
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import RegisterPatient from "./pages/RegisterPatient";
 import RegisterDoctor from "./pages/RegisterDoctor";
 
-// Patient pages
 import PatientDashboard from "./pages/patient/Dashboard";
 import Hospitals from "./pages/patient/Hospitals";
 import Medicines from "./pages/patient/Medicines";
@@ -15,47 +12,122 @@ import PatientAppointments from "./pages/patient/Appointments";
 import PatientConsultation from "./pages/patient/Consultation";
 import Assistant from "./pages/patient/Assistant";
 
-// Doctor pages
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorAppointments from "./pages/doctor/Appointments";
 import DoctorConsultation from "./pages/doctor/Consultation";
 import Prescriptions from "./pages/doctor/Prescriptions";
-
-// Components & Context
-import { AuthProvider } from "./contexts/AuthContext";
 import Patients from "./pages/doctor/Patients";
+import DoctorAssistant from "./pages/doctor/Assistant";
+
+import { AuthProvider } from "./contexts/AuthContext";
+import PrivateRoute from "./components/PrivateRoute";
 
 function AppContent() {
-
-
   return (
-    <>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register-patient" element={<RegisterPatient />} />
-        <Route path="/register-doctor" element={<RegisterDoctor />} />
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register-patient" element={<RegisterPatient />} />
+      <Route path="/register-doctor" element={<RegisterDoctor />} />
 
-        {/* Patient routes */}
-        <Route path="/patient/dashboard" element={<PatientDashboard />} />
-        <Route path="/patient/hospitals" element={<Hospitals />} />
-        <Route path="/patient/medicines" element={<Medicines />} />
-        <Route path="/patient/appointments" element={<PatientAppointments />} />
-        <Route path="/patient/consultation" element={<PatientConsultation />} />
-        <Route path="/patient/assistant" element={<Assistant />} />
+      <Route
+        path="/patient/dashboard"
+        element={
+          <PrivateRoute role="patient">
+            <PatientDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/patient/hospitals"
+        element={
+          <PrivateRoute role="patient">
+            <Hospitals />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/patient/medicines"
+        element={
+          <PrivateRoute role="patient">
+            <Medicines />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/patient/appointments"
+        element={
+          <PrivateRoute role="patient">
+            <PatientAppointments />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/patient/consultation"
+        element={
+          <PrivateRoute role="patient">
+            <PatientConsultation />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/patient/assistant"
+        element={
+          <PrivateRoute role="patient">
+            <Assistant />
+          </PrivateRoute>
+        }
+      />
 
-        {/* Doctor routes */}
-        <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-        <Route path="/doctor/patients" element={<Patients />} />
-        <Route path="/doctor/appointments" element={<DoctorAppointments />} />
-        <Route path="/doctor/consultation" element={<DoctorConsultation />} />
-        <Route path="/doctor/prescriptions" element={<Prescriptions />} />
-        <Route path="/doctor/assistant" element={<Assistant />} />
-
-      </Routes>
-
-    </>
+      <Route
+        path="/doctor/dashboard"
+        element={
+          <PrivateRoute role="doctor">
+            <DoctorDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/doctor/patients"
+        element={
+          <PrivateRoute role="doctor">
+            <Patients />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/doctor/appointments"
+        element={
+          <PrivateRoute role="doctor">
+            <DoctorAppointments />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/doctor/consultation"
+        element={
+          <PrivateRoute role="doctor">
+            <DoctorConsultation />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/doctor/prescriptions"
+        element={
+          <PrivateRoute role="doctor">
+            <Prescriptions />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/doctor/assistant"
+        element={
+          <PrivateRoute role="doctor">
+            <DoctorAssistant />
+          </PrivateRoute>
+        }
+      />
+    </Routes>
   );
 }
 

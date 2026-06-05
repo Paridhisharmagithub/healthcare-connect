@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { getAppointments, bookAppointment } from "../../services/api";
+import {
+  listPatientAppointments,
+  bookAppointment,
+} from "../../services/appointments";
 import Navbar from "../../components/Navbar";
 import { Calendar, Clock, User, Plus, CheckCircle, Loader } from "lucide-react";
 
@@ -12,8 +15,8 @@ export default function Appointments() {
 
   const fetchAppointments = async () => {
     try {
-      const res = await getAppointments();
-      setAppointments(res.data);
+      const list = await listPatientAppointments();
+      setAppointments(list);
     } catch (error) {
       console.error("Failed to fetch appointments:", error);
     }
@@ -42,7 +45,7 @@ export default function Appointments() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <Navbar userType="patient" userName="John Doe" />
+      <Navbar userType="patient" />
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
@@ -71,9 +74,12 @@ export default function Appointments() {
             <div className="space-y-4">
               <div>
                 <label className="block text-gray-700 font-medium mb-2">Doctor Name</label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Use the doctor&apos;s registered full name exactly as in their profile.
+                </p>
                 <input
                   type="text"
-                  placeholder="Enter doctor's name"
+                  placeholder="e.g. Dr. Sharma"
                   value={doctor}
                   onChange={(e) => setDoctor(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition"
@@ -138,7 +144,7 @@ export default function Appointments() {
             <div className="space-y-4">
               {appointments.map((appointment) => (
                 <div
-                  key={appointment.uid}
+                  key={appointment.id}
                   className="flex items-center justify-between p-6 bg-emerald-50 rounded-xl border border-emerald-100 hover:shadow-md transition"
                 >
                   <div className="flex items-center gap-4">
@@ -146,15 +152,17 @@ export default function Appointments() {
                       <User className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-800">Dr. {appointment.doctor || appointment.patient}</h3>
+                      <h3 className="font-semibold text-gray-800">
+                        {appointment.doctorName || appointment.doctor || "Doctor"}
+                      </h3>
                       <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
                         <Clock className="w-4 h-4" />
                         {new Date(appointment.date).toLocaleString()}
                       </p>
                     </div>
                   </div>
-                  <span className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold">
-                    Scheduled
+                  <span className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold capitalize">
+                    {appointment.status || "pending"}
                   </span>
                 </div>
               ))}

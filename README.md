@@ -66,8 +66,14 @@ Book appointments, chat with an AI health assistant, upload reports, search medi
 
 ## 🚀 Getting Started
 
-### Backend
-```bash
-git clone https://github.com/Paridhisharmagithub/healthcare-connect.git
-cd healthcare-connect/backend
-pip install -r requirements.txt
+### Local development
+
+**AI service:** `cd backend/ai-service && pip install -r requirements.txt` — copy `.env.example` to `.env`.
+
+**API gateway:** `cd backend/api-gateway && npm install && npm start`
+
+**Frontend:** `cd frontend && npm install && npm start`
+
+### Deploy (Cloud Run + Firebase Hosting)
+
+See [deploy/cloud-run-free-tier.md](deploy/cloud-run-free-tier.md). Appointments use Firestore; AI and medicine search use Cloud Run backends.

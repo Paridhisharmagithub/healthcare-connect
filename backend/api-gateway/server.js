@@ -3,7 +3,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import multer from "multer";
 import axios from "axios";
-import admin from "firebase-admin";
 import FormData from "form-data";
 
 dotenv.config();
@@ -11,45 +10,49 @@ dotenv.config();
 const app = express();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } });
 
-app.use(cors());
+const isDev = process.env.NODE_ENV !== "production";
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (isDev && allowedOrigins.length === 0) {
+        callback(null, true);
+        return;
+      }
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin}`));
+      }
+    },
+  })
+);
 app.use(express.json());
 
-// 🌍 ENV BASED FLASK URL (FINAL)
-const FLASK_URL =
-  process.env.FLASK_AI_URL || "http://localhost:5000";
+const FLASK_URL = process.env.FLASK_AI_URL || "http://localhost:5000";
 
-console.log("🌍 ENV:", process.env.NODE_ENV);
-console.log("🔗 Using Flask URL:", FLASK_URL);
+console.log("ENV:", process.env.NODE_ENV || "development");
+console.log("Flask URL:", FLASK_URL);
 
-// ================= Firebase =================
-let db = null;
-
-try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-
-    serviceAccount.private_key =
-      serviceAccount.private_key.replace(/\\n/g, "\n");
-
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-
-    db = admin.firestore();
-    console.log("✅ Firebase initialized");
-  } else {
-    console.log("⚠️ Firebase not configured");
+app.get("/health", async (req, res) => {
+  let flask = { ok: false };
+  try {
+    const r = await axios.get(`${FLASK_URL}/health`, { timeout: 5000 });
+    flask = { ok: r.status === 200, ...r.data };
+  } catch {
+    flask = { ok: false };
   }
-} catch (err) {
-  console.error("❌ Firebase init failed:", err.message);
-}
-
-// ================= Health =================
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({ status: "ok", flask });
 });
 
-// ================= CHAT =================
 app.post("/api/chat", upload.array("files"), async (req, res) => {
   try {
     const { uid, message, history } = req.body;
@@ -58,15 +61,12 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
       return res.status(400).json({ error: "UID required" });
     }
 
-    console.log("👉 Files:", req.files?.length || 0);
-    console.log("👉 Message:", message);
-
     const formData = new FormData();
     formData.append("uid", uid);
     formData.append("message", message || "");
     formData.append("history", history || "[]");
 
-    if (req.files && req.files.length > 0) {
+    if (req.files?.length > 0) {
       req.files.forEach((file) => {
         formData.append("files", file.buffer, {
           filename: file.originalname,
@@ -75,31 +75,19 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
       });
     }
 
-    const aiRes = await axios.post(
-      `${FLASK_URL}/ai/chat`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          Accept: "application/json",
-        },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-        timeout: 90000,
-      }
-    );
+    const aiRes = await axios.post(`${FLASK_URL}/ai/chat`, formData, {
+      headers: {
+        ...formData.getHeaders(),
+        Accept: "application/json",
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      timeout: 90000,
+    });
 
     res.json(aiRes.data);
-
   } catch (err) {
-    console.error("❌ Chat API error:", err.message);
-    console.error("🔥 FULL ERROR:", err);
-
-    if (err.response) {
-      console.error("🔥 Flask status:", err.response.status);
-      console.error("🔥 Flask data:", err.response.data);
-    }
-
+    console.error("Chat API error:", err.message);
     res.status(500).json({
       error: "AI service failed",
       details: err.response?.data || err.message,
@@ -107,30 +95,15 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
   }
 });
 
-// ================= MEDICINE =================
 app.get("/api/search-medicine", async (req, res) => {
   try {
-    console.log("👉 Query:", req.query);
-    console.log("👉 Calling Flask:", `${FLASK_URL}/api/search-medicine`);
-
-    const response = await axios.get(
-      `${FLASK_URL}/api/search-medicine`,
-      {
-        params: req.query,
-        timeout: 60000,
-      }
-    );
-
+    const response = await axios.get(`${FLASK_URL}/api/search-medicine`, {
+      params: req.query,
+      timeout: 60000,
+    });
     res.json(response.data);
-
   } catch (err) {
-    console.error("❌ Medicine API error:", err.message);
-
-    if (err.response) {
-      console.error("🔥 Flask status:", err.response.status);
-      console.error("🔥 Flask data:", err.response.data);
-    }
-
+    console.error("Medicine API error:", err.message);
     res.status(500).json({
       error: "Medicine search failed",
       details: err.response?.data || err.message,
@@ -138,9 +111,8 @@ app.get("/api/search-medicine", async (req, res) => {
   }
 });
 
-// ================= START =================
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Node API running on port ${PORT}`);
+  console.log(`Node API running on port ${PORT}`);
 });

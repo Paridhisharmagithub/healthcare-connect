@@ -1,39 +1,29 @@
 import axios from "axios";
+import { auth } from "../firebase";
 
-// ================= ENV DETECTION =================
 const isLocal =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1";
 
-// ================= BASE URL (SAFE FALLBACK) =================
+const prodApiBase = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, "") + "/api"
+  : null;
+
+if (!isLocal && !prodApiBase) {
+  console.error(
+    "REACT_APP_API_URL is required for production builds (e.g. your Cloud Run API gateway URL)."
+  );
+}
+
 const API_URL = isLocal
   ? "http://localhost:4000/api"
-  : process.env.REACT_APP_API_URL
-  ? process.env.REACT_APP_API_URL.replace(/\/$/, "") + "/api"
-  : "https://healthcare-connect-1-eg8e.onrender.com/api"; // 🔥 fallback
+  : prodApiBase || "http://localhost:4000/api";
 
-console.log("🌍 API URL:", API_URL);
-
-// ================= AXIOS INSTANCE =================
 const client = axios.create({
   baseURL: API_URL,
-  timeout: 90000, // 🔥 increased for Render cold start
+  timeout: 90000,
 });
 
-// ================= BASIC APIs =================
-export const registerPatient = (data) =>
-  client.post("/register-patient", data);
-
-export const getAppointments = () =>
-  client.get("/appointments");
-
-export const bookAppointment = (data) =>
-  client.post("/book-appointment", data);
-
-export const approveDoctor = (uid, status) =>
-  client.post("/approve-doctor", { uid, status });
-
-// ================= MEDICINE SEARCH =================
 export const searchMedicine = async (
   name,
   type = "",
@@ -44,12 +34,9 @@ export const searchMedicine = async (
     const res = await client.get("/search-medicine", {
       params: { name, type, manufacturer, page },
     });
-
     return res.data;
-
   } catch (error) {
-    console.error("❌ Medicine API error:", error);
-
+    console.error("Medicine API error:", error);
     return {
       results: [],
       error: "Medicine service temporarily unavailable",
@@ -57,45 +44,30 @@ export const searchMedicine = async (
   }
 };
 
-// ================= CHAT =================
-export const chatWithAI = async (
-  message,
-  history = [],
-  files = []
-) => {
+export const chatWithAI = async (message, history = [], files = []) => {
   try {
-    let uid = localStorage.getItem("uid");
-
-    if (!uid) {
-      uid = "user-" + Date.now();
-      localStorage.setItem("uid", uid);
-    }
+    const uid =
+      auth.currentUser?.uid ||
+      localStorage.getItem("uid") ||
+      "guest-" + Date.now();
 
     const formData = new FormData();
     formData.append("uid", uid);
     formData.append("message", message);
     formData.append("history", JSON.stringify(history));
 
-    if (files && files.length > 0) {
+    if (files?.length > 0) {
       files.forEach((file) => formData.append("files", file));
     }
 
-    const response = await axios.post(
-      `${API_URL}/chat`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        timeout: 120000, // 🔥 AI + OCR safe
-      }
-    );
+    const response = await axios.post(`${API_URL}/chat`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120000,
+    });
 
     return response.data;
-
   } catch (error) {
-    console.error("❌ Chat API error:", error);
-
+    console.error("Chat API error:", error);
     return {
       response: "Server busy. Try again in a few seconds.",
       is_emergency: false,
@@ -103,14 +75,5 @@ export const chatWithAI = async (
   }
 };
 
-// ================= EXPORT =================
-const apiService = {
-  registerPatient,
-  getAppointments,
-  bookAppointment,
-  approveDoctor,
-  searchMedicine,
-  chatWithAI,
-};
-
+const apiService = { searchMedicine, chatWithAI };
 export default apiService;

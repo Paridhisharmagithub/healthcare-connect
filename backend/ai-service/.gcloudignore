@@ -1,0 +1,26 @@
+# Ignore Git metadata
+.git/
+.gitignore
+
+# Ignore local Python environment and dependency cache chunks
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Ignore local environment variables configuration secrets
+.env
+.env.example
+
+# CRITICAL: Ignore local testing files, images, or report drafts 
+# so they don't bloat your cloud image size
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.docx
+storage/
+uploads/
+extracted_images/
